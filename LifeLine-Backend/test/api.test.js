@@ -31,6 +31,10 @@ describe('API Smoke Tests', () => {
     ['get', '/api/locations/user/me/locations'],
     ['get', '/api/locations/user/me/stats'],
     ['post', '/api/locations/current'],
+    ['get', '/api/emergency/user/me'],
+    ['get', '/api/emergency/v1/user/me'],
+    ['post', '/api/emergency/sos'],
+    ['post', '/api/emergency/v1/sos'],
   ])('Protected endpoint %s %s rejects missing token', async (method, endpoint) => {
     const response = await request(app)[method](endpoint);
 
