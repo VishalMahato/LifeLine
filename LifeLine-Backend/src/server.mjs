@@ -9,6 +9,7 @@ import userRoutes from './api/User/User.routes.mjs';
 import helperRoutes from './api/Helper/Helper.routes.mjs';
 import medicalRoutes from './api/Medical/Medical.routes.mjs';
 import locationRoutes from './api/Location/Location.routes.mjs';
+import emergencyRoutes from './api/Emergency/Emergency.routes.mjs';
 
 // Load environment variables without noisy runtime tips
 dotenv.config({ quiet: true });
@@ -52,6 +53,8 @@ app.use('/api/medical', medicalRoutes);
 app.use('/api/medical/v1', medicalRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/locations/v1', locationRoutes);
+app.use('/api/emergency', emergencyRoutes);
+app.use('/api/emergency/v1', emergencyRoutes);
 
 // 404 handler
 app.use((req, res) => {
