@@ -17,7 +17,10 @@ import VerifySkillsScreen from "@/src/features/auth/screens/VerifySkillsScreen";
 import MedicalInfoScreen, {
   type MedicalInfoHandle,
 } from "@/src/features/auth/screens/MedicalInfoScreen";
-import SecureLocationScreen from "@/src/features/auth/screens/SecureLocationScreen";
+import SecureLocationScreen, {
+  type SecureLocationPayload,
+  type SecureLocationScreenHandle,
+} from "@/src/features/auth/screens/SecureLocationScreen";
 import {
   createUserAuth,
   updateSignupEmergencyContacts,
@@ -69,6 +72,7 @@ const SignUp = () => {
   const userInfoRef = useRef<UserInfoHandle>(null);
   const emergencyContactsRef = useRef<EmergencyContactsHandle>(null);
   const medicalInfoRef = useRef<MedicalInfoHandle>(null);
+  const secureLocationRef = useRef<SecureLocationScreenHandle>(null);
   const currentSteps =
     currentRole === "helper" ? helperSignUpSteps : userSignUpSteps;
   const isLastStep = currentStep === currentSteps.length - 1;
@@ -100,9 +104,13 @@ const SignUp = () => {
     ).unwrap();
   };
 
-  const handleNext = async () => {
-    if (isLastStep) return;
+  const handleSecureLocationSubmit = async (_payload: SecureLocationPayload) => {
+    const nextRoute =
+      currentRole === "helper" ? "/HelperAccountReady" : "/AccountReady";
+    router.replace(nextRoute as "/HelperAccountReady" | "/AccountReady");
+  };
 
+  const handleNext = async () => {
     if (currentStep === 0) {
       if (!userInfoRef.current) {
         return;
@@ -138,6 +146,18 @@ const SignUp = () => {
       }
     }
 
+    if (isLastStep) {
+      if (!secureLocationRef.current) {
+        return;
+      }
+
+      const success = await secureLocationRef.current.handleSubmit();
+      if (!success) {
+        return;
+      }
+      return;
+    }
+
     goToNextStep();
   };
 
@@ -158,6 +178,11 @@ const SignUp = () => {
         />
       ) : currentRole === "user" && currentStep === 2 ? (
         <MedicalInfoScreen ref={medicalInfoRef} />
+      ) : isLastStep ? (
+        <SecureLocationScreen
+          ref={secureLocationRef}
+          onSubmit={handleSecureLocationSubmit}
+        />
       ) : (
         currentSteps[currentStep].Element
       )}
@@ -169,19 +194,19 @@ const SignUp = () => {
           </TouchableOpacity>
         )}
 
-        {!isLastStep && (
-          <TouchableOpacity
-            style={[styles.nextBtn, currentStep === 0 && styles.nextBtnFull]}
-            onPress={handleNext}
-            disabled={isLoading || isSavingMedical}
-          >
-            <Text style={styles.nextText}>
-              {((currentStep === 0 && isLoading) || isSavingMedical)
-                ? "Saving..."
+        <TouchableOpacity
+          style={[styles.nextBtn, currentStep === 0 && styles.nextBtnFull]}
+          onPress={handleNext}
+          disabled={isLoading || isSavingMedical}
+        >
+          <Text style={styles.nextText}>
+            {((currentStep === 0 && isLoading) || isSavingMedical)
+              ? "Saving..."
+              : isLastStep
+                ? "Finish Setup →"
                 : "Next Step →"}
-            </Text>
-          </TouchableOpacity>
-        )}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {currentStep === 0 && (
