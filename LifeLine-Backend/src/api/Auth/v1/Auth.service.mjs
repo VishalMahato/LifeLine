@@ -71,7 +71,7 @@ class AuthService {
                 authId: auth._id,
                 role: auth.role,
                 isVerified: auth.isVerified,
-                userData: auth.userId || auth.helperId
+                userData: auth.userId || auth.helperId || auth
             };
         } catch (error) {
             throw new Error(`Email check failed: ${error.message}`);
