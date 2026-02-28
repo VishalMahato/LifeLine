@@ -77,9 +77,11 @@ export default function Layout() {
     return null;
   }
 
+  const isUserRole = role === "user";
+
   return (
     <Tab.Navigator
-      initialRouteName={role === "helper" ? "Helpers" : "Dashboard"}
+      initialRouteName={isUserRole ? "Dashboard" : "Helpers"}
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: true,
@@ -87,46 +89,52 @@ export default function Layout() {
         tabBarLabelStyle: styles.label,
       }}
     >
-      <Tab.Screen
-        name="Dashboard"
-        component={Dashboard}
-        options={{
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="home" size={22} color={color} />
-          ),
-        }}
-      />
+      {isUserRole && (
+        <Tab.Screen
+          name="Dashboard"
+          component={Dashboard}
+          options={{
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="home" size={22} color={color} />
+            ),
+          }}
+        />
+      )}
 
-      <Tab.Screen
-        name="Nearby"
-        component={NearbyScreen}
-        options={{
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="navigate" size={22} color={color} />
-          ),
-        }}
-      />
+      {isUserRole && (
+        <Tab.Screen
+          name="Nearby"
+          component={NearbyScreen}
+          options={{
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="navigate" size={22} color={color} />
+            ),
+          }}
+        />
+      )}
 
       {/* CENTER BUTTON */}
-      <Tab.Screen
-        name="SOS"
-        component={SOSActiveAIScreen}
-        listeners={() => ({
-          tabPress: (e) => {
-            // Prevent default action
-            e.preventDefault();
-            router.push("/(global)/SOSActiveAIScreen");
-          },
-        })}
-        options={{
-          tabBarLabel: "",
-          tabBarIcon: () => (
-            <View style={styles.centerButton}>
-              <Ionicons name="warning" size={28} color="#fff" />
-            </View>
-          ),
-        }}
-      />
+      {isUserRole && (
+        <Tab.Screen
+          name="SOS"
+          component={SOSActiveAIScreen}
+          listeners={() => ({
+            tabPress: (e) => {
+              // Prevent default action
+              e.preventDefault();
+              router.push("/(global)/SOSActiveAIScreen");
+            },
+          })}
+          options={{
+            tabBarLabel: "",
+            tabBarIcon: () => (
+              <View style={styles.centerButton}>
+                <Ionicons name="warning" size={28} color="#fff" />
+              </View>
+            ),
+          }}
+        />
+      )}
 
       <Tab.Screen
         name="Helpers"
