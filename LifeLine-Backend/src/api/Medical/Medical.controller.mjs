@@ -43,7 +43,14 @@ export default class MedicalController {
     static async getMedicalInfo(req, res) {
         try {
             const { id } = req.params;
-            const medicalInfo = await MedicalService.getMedicalInfoById(id);
+            // Prefer userId lookup for compatibility with signup/profile workflows.
+            // Fallback to medical document ID to avoid breaking existing clients.
+            let medicalInfo;
+            try {
+                medicalInfo = await MedicalService.getMedicalInfoByUserId(id);
+            } catch {
+                medicalInfo = await MedicalService.getMedicalInfoById(id);
+            }
 
             res.status(200).json({
                 success: true,

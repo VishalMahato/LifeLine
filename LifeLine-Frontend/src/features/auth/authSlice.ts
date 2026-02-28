@@ -18,6 +18,8 @@ interface EmailCheckResult {
   authId?: string;
   role?: "user" | "helper";
   userData?: {
+    _id?: string;
+    id?: string;
     name?: string;
     fullName?: string;
     email?: string;
@@ -90,6 +92,7 @@ interface SignupStepResult {
 
 interface LoginResult {
   user?: {
+    id?: string;
     name?: string;
     fullName?: string;
     email?: string;
@@ -130,6 +133,7 @@ export interface AuthState {
   isLoading: boolean;
   error: string | null;
   authId: string | null;
+  userId: string | null;
 }
 
 const initialState: AuthState = {
@@ -138,6 +142,7 @@ const initialState: AuthState = {
   isLoading: false,
   error: null,
   authId: null,
+  userId: null,
 };
 
 const getExpoHost = () => {
@@ -296,6 +301,7 @@ const authSlice = createSlice({
       state.userData = null;
       state.emailExists = false;
       state.authId = null;
+      state.userId = null;
     },
     clearError: (state) => {
       state.error = null;
@@ -311,6 +317,9 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.emailExists = action.payload.exists;
         state.authId = action.payload.authId || null;
+        state.userId = action.payload.userData?._id
+          || action.payload.userData?.id
+          || state.userId;
 
         if (action.payload.exists && action.payload.userData) {
           state.userData = mapUserToState(
@@ -348,6 +357,7 @@ const authSlice = createSlice({
           state.userData = mapUserToState(user, user.role || "user");
           state.emailExists = true;
           state.authId = user._id || state.authId;
+          state.userId = user._id || user.id || state.userId;
         }
       })
       .addCase(loginUser.rejected, (state, action) => {
