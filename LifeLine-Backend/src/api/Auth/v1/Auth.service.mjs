@@ -1,11 +1,7 @@
 class AuthService {
- 
-    login = () => {
+  login = () => {};
 
-    }
-
-    signUp = () => {
-        
-    }
-    
+  signUp = () => {};
 }
+
+export default AuthService;

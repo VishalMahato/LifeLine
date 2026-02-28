@@ -2,23 +2,20 @@ import mongoose from 'mongoose';
 
 const authSchema = new mongoose.Schema(
   {
+    // Profile settings
+    profileImage: {
+      type: String,
+      default: null,
+    },
 
+    name: {
+      type: String,
+      required: [true, 'Name is required'],
+      trim: true,
+      minlength: [2, 'Name must be at least 2 characters long'],
+      maxlength: [50, 'Name cannot exceed 50 characters'],
+    },
 
-     // Profile settings
-        profileImage: {
-            type: String,
-            default: null,
-        },
-
-      name: {
-                type: String,
-                required: [true, 'Name is required'],
-                trim: true,
-                minlength: [2, 'Name must be at least 2 characters long'],
-                maxlength: [50, 'Name cannot exceed 50 characters'],
-            },
-    
-           
     email: {
       type: String,
       required: true,
@@ -27,13 +24,13 @@ const authSchema = new mongoose.Schema(
       trim: true,
     },
 
-     phoneNumber: {
-                type: String,
-                required: [true, 'Phone number is required'],
-                unique: true,
-                trim: true,
-                match: [/^[+]?[\d\s\-()]+$/, 'Please enter a valid phone number'],
-            },
+    phoneNumber: {
+      type: String,
+      required: [true, 'Phone number is required'],
+      unique: true,
+      trim: true,
+      match: [/^[+]?[\d\s\-()]+$/, 'Please enter a valid phone number'],
+    },
     role: {
       type: String,
       enum: ['user', 'helper'],
@@ -58,7 +55,7 @@ const authSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const Auth = mongoose.model('Auth', authSchema);
