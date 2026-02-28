@@ -1,29 +1,51 @@
 {
   "expo": {
-    "name": "LifeLine",
+    "name": "Life-Line",
     "slug": "lifeline",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icons/icon.png",
+    "scheme": "lifeline",
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "root": "./app"
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ],
     "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F172A"
+      "image": "./assets/icons/icon.png",
+      "resizeMode": "contain"
     },
+    "userInterfaceStyle": "automatic",
     "android": {
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "CAMERA",
         "RECORD_AUDIO",
-        "FOREGROUND_SERVICE"
+        "FOREGROUND_SERVICE",
+        "ACCESS_BACKGROUND_LOCATION",
+        "ACCESS_NOTIFICATIONS",
+        "ACCESS_MEDIA_LOCATION"
       ]
     },
     "ios": {
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "LifeLine needs your location to send help during emergencies.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "LifeLine needs your location to send help during emergencies even when the app is in background.",
+        "NSLocationAlwaysUsageDescription": "LifeLine needs your location to send help during emergencies even when the app closed.",
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ],
         "NSCameraUsageDescription": "Camera is used to record emergency evidence.",
-        "NSMicrophoneUsageDescription": "Microphone is used for audio recording during emergencies."
+        "NSMicrophoneUsageDescription": "Microphone is used for audio recording during emergencies.",
+        "NSContactsUsageDescription": "Contacts is used to send help during emergencies.",
+        "NSPhotoLibraryUsageDescription": "Photo Library is used to send help during emergencies.",
+        "NSPhotoLibraryAddUsageDescription": "Photo Library is used to send help during emergencies."
       }
     }
   }
