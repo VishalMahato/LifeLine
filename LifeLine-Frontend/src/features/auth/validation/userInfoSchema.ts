@@ -54,6 +54,33 @@ export const existingUserSchema = yup.object({
     .required("Please select a role"),
 });
 
+export const loginSchema = yup.object({
+  email: yup
+    .string()
+    .required("Email is required")
+    .email("Please enter a valid email address"),
+  password: yup
+    .string()
+    .required("Password is required"),
+});
+
+export const validateField = async (
+  schema: yup.AnyObjectSchema,
+  field: string,
+  value: unknown,
+  context: Record<string, unknown> = {},
+) => {
+  try {
+    await schema.validateAt(field, { [field]: value, ...context });
+    return null;
+  } catch (error) {
+    if (error instanceof yup.ValidationError) {
+      return error.message;
+    }
+    return "Validation error";
+  }
+};
+
 export const validateForm = async (
   schema: yup.AnyObjectSchema,
   data: Record<string, unknown>,
@@ -77,3 +104,4 @@ export const validateForm = async (
 
 export type UserRegistrationData = yup.InferType<typeof userRegistrationSchema>;
 export type ExistingUserData = yup.InferType<typeof existingUserSchema>;
+export type LoginData = yup.InferType<typeof loginSchema>;

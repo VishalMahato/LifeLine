@@ -1,7 +1,7 @@
 import { Link, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,18 +16,37 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAppDispatch, useAppSelector } from "@/src/core/store";
 import { clearError, loginUser } from "@/src/features/auth/authSlice";
+import {
+  loginSchema,
+  validateForm,
+} from "@/src/features/auth/validation/userInfoSchema";
+
+const ROLE_ROUTE_MAP: Record<"user" | "helper", string> = {
+  user: "/User/Dashboard",
+  helper: "/User/Helper/HelperRequest",
+};
 
 const LoginScreen = () => {
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const { isLoading, error } = useAppSelector((state) => state.auth);
+  const { isLoading } = useAppSelector((state) => state.auth);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [globalError, setGlobalError] = useState("");
 
   const handleLogin = async () => {
+    setGlobalError("");
+    setFieldErrors({});
+
     const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail || !password.trim()) {
-      Alert.alert("Missing fields", "Please enter email and password.");
+    const validationErrors = await validateForm(loginSchema, {
+      email: normalizedEmail,
+      password,
+    });
+
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
       return;
     }
 
@@ -40,18 +59,16 @@ const LoginScreen = () => {
       ).unwrap();
 
       dispatch(clearError());
+
       const role = result.user?.role;
-      if (role === "helper") {
-        router.replace("/User/Dashboard");
-        return;
+      if (role && ROLE_ROUTE_MAP[role]) {
+        router.replace(ROLE_ROUTE_MAP[role]);
+      } else {
+        router.replace("/(main)/Home");
       }
-      router.replace("/User/Dashboard");
-    } catch (loginError) {
-      const message =
-        typeof loginError === "string"
-          ? loginError
-          : "Unable to login with provided credentials.";
-      Alert.alert("Login Failed", message);
+    } catch (error) {
+      const message = typeof error === "string" ? error : "Failed to login";
+      setGlobalError(message);
     }
   };
 
@@ -59,6 +76,7 @@ const LoginScreen = () => {
     <ScrollView
       contentContainerStyle={styles.scrollContainer}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={styles.container}>
         {/* Logo */}
@@ -70,21 +88,38 @@ const LoginScreen = () => {
         <Text style={styles.title}>Welcome Back</Text>
         <Text style={styles.subtitle}>Login to your safety network.</Text>
 
+        {globalError ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={20} color="#EF4444" />
+            <Text style={styles.globalErrorText}>{globalError}</Text>
+          </View>
+        ) : null}
+
         {/* Form Card */}
         <View style={styles.card}>
           {/* Email */}
           <Text style={styles.label}>EMAIL ADDRESS</Text>
-          <View style={styles.inputWrapper}>
+          <View
+            style={[styles.inputWrapper, fieldErrors.email && styles.inputError]}
+          >
             <Ionicons name="mail-outline" size={hp("2%")} color="#8A94A6" />
             <TextInput
               placeholder="name@example.com"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (fieldErrors.email) {
+                  setFieldErrors((prev) => ({ ...prev, email: "" }));
+                }
+              }}
               autoCapitalize="none"
               keyboardType="email-address"
               style={styles.input}
             />
           </View>
+          {fieldErrors.email ? (
+            <Text style={styles.errorText}>{fieldErrors.email}</Text>
+          ) : null}
 
           {/* Password */}
           <View style={styles.passwordHeader}>
@@ -94,7 +129,9 @@ const LoginScreen = () => {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.inputWrapper}>
+          <View
+            style={[styles.inputWrapper, fieldErrors.password && styles.inputError]}
+          >
             <Ionicons
               name="lock-closed-outline"
               size={hp("2%")}
@@ -103,11 +140,19 @@ const LoginScreen = () => {
             <TextInput
               placeholder="••••••••"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (fieldErrors.password) {
+                  setFieldErrors((prev) => ({ ...prev, password: "" }));
+                }
+              }}
               secureTextEntry
               style={styles.input}
             />
           </View>
+          {fieldErrors.password ? (
+            <Text style={styles.errorText}>{fieldErrors.password}</Text>
+          ) : null}
 
           {/* Login Button */}
           <TouchableOpacity
@@ -115,11 +160,12 @@ const LoginScreen = () => {
             onPress={handleLogin}
             disabled={isLoading}
           >
-            <Text style={styles.loginText}>
-              {isLoading ? "Logging in..." : "Login"}
-            </Text>
+            {isLoading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.loginText}>Login</Text>
+            )}
           </TouchableOpacity>
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
         </View>
 
         {/* Divider */}
@@ -192,6 +238,24 @@ const styles = StyleSheet.create({
     marginBottom: hp("3%"),
   },
 
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+    padding: wp("3%"),
+    borderRadius: hp("1%"),
+    marginBottom: hp("2%"),
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+  },
+
+  globalErrorText: {
+    color: "#EF4444",
+    marginLeft: wp("2%"),
+    fontSize: hp("1.6%"),
+    flex: 1,
+  },
+
   card: {
     backgroundColor: "#fff",
     borderRadius: hp("2%"),
@@ -219,6 +283,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp("4%"),
     height: hp("5.6%"),
     marginBottom: hp("1.6%"),
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+
+  inputError: {
+    borderColor: "#EF4444",
+    backgroundColor: "#FEF2F2",
   },
 
   input: {
@@ -258,10 +329,11 @@ const styles = StyleSheet.create({
   },
 
   errorText: {
-    color: "#D64545",
+    color: "#EF4444",
     fontSize: hp("1.4%"),
-    marginTop: hp("1.2%"),
-    textAlign: "center",
+    marginTop: -hp("1.2%"),
+    marginBottom: hp("1.6%"),
+    marginLeft: wp("1%"),
   },
 
   divider: {

@@ -1,7 +1,7 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import { router } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import { heightPercentageToDP as hp } from "react-native-responsive-screen";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -17,6 +17,7 @@ import SavedAddress from "./Profile/SavedAddress";
 import HelperProfileScreen from "./Helper/[helperId]";
 import NgoProfileScreen from "./Helper/[ngoId]";
 import RequestHelpScreen from "./Helper/HelperRequest";
+import { useAppSelector } from "@/src/core/store";
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -64,8 +65,21 @@ export const HelperStack = () => {
 };
 
 export default function Layout() {
+  const role = useAppSelector((state) => state.auth.userData?.role);
+
+  useEffect(() => {
+    if (!role) {
+      router.replace("/Login");
+    }
+  }, [role]);
+
+  if (!role) {
+    return null;
+  }
+
   return (
     <Tab.Navigator
+      initialRouteName={role === "helper" ? "Helpers" : "Dashboard"}
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: true,

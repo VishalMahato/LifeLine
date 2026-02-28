@@ -7,6 +7,8 @@ export interface UserData {
   mobileNumber: string;
   role: "user" | "helper";
   profileImage?: string;
+  dateOfBirth?: string;
+  gender?: string;
 }
 
 interface EmailCheckResult {
@@ -15,9 +17,14 @@ interface EmailCheckResult {
   role?: "user" | "helper";
   userData?: {
     name?: string;
+    fullName?: string;
     email?: string;
     phoneNumber?: string;
+    mobileNumber?: string;
+    role?: "user" | "helper";
     profileImage?: string;
+    dateOfBirth?: string;
+    gender?: string;
   };
 }
 
@@ -32,15 +39,38 @@ interface CreateUserAuthResult {
 interface LoginResult {
   user?: {
     name?: string;
+    fullName?: string;
     email?: string;
     phoneNumber?: string;
+    mobileNumber?: string;
     role?: "user" | "helper";
     profileImage?: string;
+    dateOfBirth?: string;
+    gender?: string;
     _id?: string;
   };
   accessToken?: string;
   refreshToken?: string;
 }
+
+const mapUserToState = (
+  user: LoginResult["user"] | EmailCheckResult["userData"] | undefined,
+  fallbackRole: "user" | "helper" = "user",
+): UserData | null => {
+  if (!user) {
+    return null;
+  }
+
+  return {
+    fullName: user.name || user.fullName || "",
+    email: user.email || "",
+    mobileNumber: user.phoneNumber || user.mobileNumber || "",
+    role: user.role || fallbackRole,
+    profileImage: user.profileImage,
+    dateOfBirth: user.dateOfBirth,
+    gender: user.gender,
+  };
+};
 
 export interface AuthState {
   userData: UserData | null;
@@ -160,13 +190,10 @@ const authSlice = createSlice({
         state.authId = action.payload.authId || null;
 
         if (action.payload.exists && action.payload.userData) {
-          state.userData = {
-            fullName: action.payload.userData.name || "",
-            email: action.payload.userData.email || "",
-            mobileNumber: action.payload.userData.phoneNumber || "",
-            role: action.payload.role || "user",
-            profileImage: action.payload.userData.profileImage,
-          };
+          state.userData = mapUserToState(
+            action.payload.userData,
+            action.payload.role || "user",
+          );
         } else if (!action.payload.exists) {
           state.userData = null;
         }
@@ -195,13 +222,7 @@ const authSlice = createSlice({
         state.isLoading = false;
         const user = action.payload.user;
         if (user) {
-          state.userData = {
-            fullName: user.name || "",
-            email: user.email || "",
-            mobileNumber: user.phoneNumber || "",
-            role: user.role || "user",
-            profileImage: user.profileImage,
-          };
+          state.userData = mapUserToState(user, user.role || "user");
           state.emailExists = true;
           state.authId = user._id || state.authId;
         }
