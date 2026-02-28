@@ -1,166 +1,307 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useMemo, useState } from 'react';
+import React, { useState } from "react";
+import { Dimensions, ScrollView, ScrollViewProps, StyleSheet, Text, View } from "react-native";
 import {
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  ScrollView,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+    heightPercentageToDP as hp,
+    widthPercentageToDP as wp,
+} from "react-native-responsive-screen";
+import Ionicons from '@expo/vector-icons/Ionicons';
 
-const cards = [
-  {
-    icon: 'alert-circle-outline' as const,
-    iconColor: '#DC2626',
-    iconBg: '#FEE2E2',
-    title: 'Ambulance Delays',
-    description: 'Average ambulance wait times can exceed 15 minutes in crowded areas.',
-    label: 'THE PROBLEM',
-  },
-  {
-    icon: 'walk-outline' as const,
-    iconColor: '#CA8A04',
-    iconBg: '#FEF9C3',
-    title: 'Elderly at Risk',
-    description: 'Immediate local support matters most during falls and sudden medical events.',
-    label: 'THE RISK',
-  },
-  {
-    icon: 'heart-outline' as const,
-    iconColor: '#2563EB',
-    iconBg: '#DBEAFE',
-    title: 'Quick Response',
-    description: 'Verified nearby responders can reach you in minutes, not hours.',
-    label: 'THE SOLUTION',
-  },
-];
+const { width } = Dimensions.get("window");
 
-export default function WhyLifeLineSection() {
-  const { width } = useWindowDimensions();
+const WhyLifeLineSection = () => {
+  const isLargeScreen = wp("100%") >= 768; // Tablet / Laptop breakpoint
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const cardWidth = useMemo(() => Math.max(280, Math.min(440, width - 48)), [width]);
-  const pageWidth = cardWidth + 16;
+  const cards = [
+    {
+      icon: "alert-circle",
+      iconColor: "#E53935",
+      iconBg: "#FDECEA",
+      title: "Ambulance Delays",
+      desc: "Average ambulance wait times can exceed 15 minutes in urban areas.",
+      problemText: "THE PROBLEM",
+      problemColor: "#E53935",
+    },
+    {
+      icon: "walk",
+      iconColor: "#F9A825",
+      iconBg: "#FFF7E0",
+      title: "Elderly at Risk",
+      desc: "Immediate help is critical for seniors during falls or emergencies.",
+      problemText: "THE RISK",
+      problemColor: "#F9A825",
+    },
+    {
+      icon: "heart",
+      iconColor: "#2F80ED",
+      iconBg: "#EAF4FF",
+      title: "Quick Response",
+      desc: "Get help from verified responders in minutes, not hours.",
+      problemText: "THE SOLUTION",
+      problemColor: "#2F80ED",
+    },
+  ];
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(event.nativeEvent.contentOffset.x / pageWidth);
-    const safeIndex = Math.min(cards.length - 1, Math.max(0, index));
-    setCurrentIndex(safeIndex);
+  const handleScroll = (event: any) => {
+    const scrollPosition = event.nativeEvent.contentOffset.x;
+    const index = Math.round(scrollPosition / width);
+    setCurrentIndex(index);
   };
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Why LifeLine?</Text>
-        <View style={styles.dots}>
-          {cards.map((_, index) => (
-            <View key={index} style={[styles.dot, currentIndex === index && styles.activeDot]} />
-          ))}
-        </View>
+        <Text style={[styles.title, isLargeScreen && styles.titleLarge]}>
+          Why LifeLine?
+        </Text>
+        {!isLargeScreen && (
+          <View style={styles.dots}>
+            {cards.map((_, index) => (
+              <View
+                key={index}
+                style={[styles.dot, index === currentIndex && styles.activeDot]}
+              />
+            ))}
+          </View>
+        )}
       </View>
 
-      <ScrollView
-        horizontal
-        pagingEnabled
-        snapToInterval={pageWidth}
-        decelerationRate="fast"
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      >
-        {cards.map((card) => (
-          <View key={card.title} style={[styles.card, { width: cardWidth }]}>
-            <View style={[styles.iconBox, { backgroundColor: card.iconBg }]}>
-              <Ionicons name={card.icon} size={24} color={card.iconColor} />
+      {isLargeScreen ? (
+        <View style={styles.largeScreenGrid}>
+          {cards.map((card, index) => (
+            <View
+              key={index}
+              style={[styles.card, styles.cardLarge]}
+            >
+              <View style={[styles.iconBox, { backgroundColor: card.iconBg }]}>
+                <Ionicons
+                  name={card.icon as any}
+                  size={hp("3%")}
+                  color={card.iconColor}
+                />
+              </View>
+
+              <Text
+                style={[
+                  styles.cardTitle,
+                  styles.cardTitleLarge,
+                ]}
+              >
+                {card.title}
+              </Text>
+              <Text
+                style={[styles.cardDesc, styles.cardDescLarge]}
+              >
+                {card.desc}
+              </Text>
+
+              <View style={styles.divider} />
+
+              <Text
+                style={[
+                  styles.problemText,
+                  { color: card.problemColor },
+                  styles.problemTextLarge,
+                ]}
+              >
+                {card.problemText}
+              </Text>
             </View>
+          ))}
+        </View>
+      ) : (
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          style={styles.scrollView}
+        >
+          {cards.map((card, index) => (
+            <View
+              key={index}
+              style={[
+                styles.cardWrapper,
+                isLargeScreen && styles.cardWrapperLarge,
+              ]}
+            >
+              <View style={[styles.card, isLargeScreen && styles.cardLarge]}>
+                <View style={[styles.iconBox, { backgroundColor: card.iconBg }]}>
+                  <Ionicons
+                    name={card.icon as any}
+                    size={isLargeScreen ? hp("3%") : hp("2.5%")}
+                    color={card.iconColor}
+                  />
+                </View>
 
-            <Text style={styles.cardTitle}>{card.title}</Text>
-            <Text style={styles.cardDescription}>{card.description}</Text>
+                <Text
+                  style={[
+                    styles.cardTitle,
+                    isLargeScreen && styles.cardTitleLarge,
+                  ]}
+                >
+                  {card.title}
+                </Text>
+                <Text
+                  style={[styles.cardDesc, isLargeScreen && styles.cardDescLarge]}
+                >
+                  {card.desc}
+                </Text>
 
-            <View style={styles.divider} />
-            <Text style={[styles.cardLabel, { color: card.iconColor }]}>{card.label}</Text>
-          </View>
-        ))}
-      </ScrollView>
+                <View style={styles.divider} />
+
+                <Text
+                  style={[
+                    styles.problemText,
+                    { color: card.problemColor },
+                    isLargeScreen && styles.problemTextLarge,
+                  ]}
+                >
+                  {card.problemText}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
-}
+};
+
+export default WhyLifeLineSection;
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 24,
-    paddingTop: 36,
-    marginTop: 28,
-    backgroundColor: '#F8FAFC',
+    paddingHorizontal: wp("6%"),
+    paddingTop: hp("4%"),
+    marginTop: hp("5%"),
+    backgroundColor: "#FAFAFA",
   },
+
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 18,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: hp("3%"),
   },
+
   title: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontSize: hp("2.8%"),
+    fontWeight: "800",
+    color: "#0A2540",
   },
+
+  titleLarge: {
+    fontSize: hp("3.5%"),
+  },
+
   dots: {
-    flexDirection: 'row',
-    gap: 8,
+    flexDirection: "row",
+    gap: wp("1.5%"),
   },
+
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 99,
-    backgroundColor: '#CBD5E1',
+    width: hp("0.9%"),
+    height: hp("0.9%"),
+    borderRadius: 50,
+    backgroundColor: "#D0D5DD",
   },
+
   activeDot: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2F80ED",
   },
-  scrollContent: {
-    paddingRight: 24,
+
+  scrollView: {
+    marginHorizontal: -wp("6%"), // to make full width
   },
+
+  largeScreenGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: wp("3%"),
+  },
+
+  cardWrapper: {
+    width: width,
+    paddingHorizontal: wp("6%"),
+  },
+
+  cardWrapperLarge: {
+    // adjust if needed
+  },
+
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 20,
-    marginRight: 16,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    backgroundColor: "#fff",
+    borderRadius: hp("2%"),
+    padding: wp("5%"),
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 3,
   },
+
+  cardLarge: {
+    padding: wp("6%"),
+    borderRadius: hp("2.5%"),
+  },
+
   iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 14,
+    width: hp("5%"),
+    height: hp("5%"),
+    borderRadius: hp("1.5%"),
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: hp("2%"),
   },
+
   cardTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 8,
+    fontSize: hp("2.1%"),
+    fontWeight: "700",
+    color: "#0A2540",
+    marginBottom: hp("1%"),
   },
-  cardDescription: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#475569',
+
+  cardTitleLarge: {
+    fontSize: hp("2.5%"),
   },
+
+  cardDesc: {
+    fontSize: hp("1.8%"),
+    color: "#5F6C7B",
+    lineHeight: hp("2.6%"),
+  },
+
+  cardDescLarge: {
+    fontSize: hp("2%"),
+    lineHeight: hp("2.8%"),
+  },
+
   divider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
-    marginVertical: 16,
+    backgroundColor: "#EEF2F6",
+    marginVertical: hp("2%"),
   },
-  cardLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+
+  problemText: {
+    fontSize: hp("1.4%"),
+    fontWeight: "700",
     letterSpacing: 1,
   },
+
+  problemTextLarge: {
+    fontSize: hp("1.6%"),
+  },
+
+  viewAll: {
+    fontSize: hp("1.7%"),
+    fontWeight: "600",
+    color: "#2F80ED",
+  },
+
+  viewAllLarge: {
+    fontSize: hp("2%"),
+  },
 });
+
