@@ -32,6 +32,11 @@ yarn-error.*
 
 # local env files
 .env*.local
+LifeLine-Backend/.env
+LifeLine-Frontend/.env
+
+# local package manager cache
+.pnpm-store/
 
 # typescript
 *.tsbuildinfo
