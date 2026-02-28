@@ -1,31 +1,31 @@
-import HelperService from './Helper.service.mjs';
-import HelperConstants from './Helper.constants.mjs';
+import UserService from './User.service.mjs';
+import UserConstants from './User.constants.mjs';
 
 /**
- * HelperController - API handlers for Helper operations
+ * UserController - API handlers for User operations
  * @author Senior Software Engineer
  * @version 1.0.0
  * @since 2026
  */
-export default class HelperController {
+export default class UserController {
     /**
-     * Create helper profile
+     * Create user profile
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
-    static async createHelper(req, res) {
+    static async createUser(req, res) {
         try {
-            const helperData = {
+            const userData = {
                 ...req.body,
                 authId: req.user?.id || req.body.authId // From auth middleware or direct
             };
 
-            const helper = await HelperService.createHelper(helperData);
+            const user = await UserService.createUser(userData);
 
             res.status(201).json({
                 success: true,
-                message: HelperConstants.MESSAGES.SUCCESS.HELPER_CREATED,
-                data: helper
+                message: UserConstants.MESSAGES.SUCCESS.USER_CREATED,
+                data: user
             });
         } catch (error) {
             res.status(400).json({
@@ -36,18 +36,18 @@ export default class HelperController {
     }
 
     /**
-     * Get helper profile by ID
+     * Get user profile by ID
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
-    static async getHelper(req, res) {
+    static async getUser(req, res) {
         try {
             const { id } = req.params;
-            const helper = await HelperService.getHelperById(id);
+            const user = await UserService.getUserById(id);
 
             res.status(200).json({
                 success: true,
-                data: helper
+                data: user
             });
         } catch (error) {
             res.status(404).json({
@@ -58,18 +58,18 @@ export default class HelperController {
     }
 
     /**
-     * Get current user's helper profile
+     * Get current user's profile
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
     static async getMyProfile(req, res) {
         try {
             const authId = req.user.id;
-            const helper = await HelperService.getHelperByAuthId(authId);
+            const user = await UserService.getUserByAuthId(authId);
 
             res.status(200).json({
                 success: true,
-                data: helper
+                data: user
             });
         } catch (error) {
             res.status(404).json({
@@ -80,21 +80,21 @@ export default class HelperController {
     }
 
     /**
-     * Update helper profile
+     * Update user profile
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
-    static async updateHelper(req, res) {
+    static async updateUser(req, res) {
         try {
             const { id } = req.params;
             const updateData = req.body;
 
-            const helper = await HelperService.updateHelper(id, updateData);
+            const user = await UserService.updateUser(id, updateData);
 
             res.status(200).json({
                 success: true,
-                message: HelperConstants.MESSAGES.SUCCESS.HELPER_UPDATED,
-                data: helper
+                message: UserConstants.MESSAGES.SUCCESS.USER_UPDATED,
+                data: user
             });
         } catch (error) {
             res.status(400).json({
@@ -105,21 +105,21 @@ export default class HelperController {
     }
 
     /**
-     * Update helper availability
+     * Update emergency contacts
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
-    static async updateAvailability(req, res) {
+    static async updateEmergencyContacts(req, res) {
         try {
             const { id } = req.params;
-            const availabilityData = req.body;
+            const { emergencyContacts } = req.body;
 
-            const helper = await HelperService.updateAvailability(id, availabilityData);
+            const user = await UserService.updateEmergencyContacts(id, emergencyContacts);
 
             res.status(200).json({
                 success: true,
-                message: HelperConstants.MESSAGES.SUCCESS.AVAILABILITY_UPDATED,
-                data: helper
+                message: UserConstants.MESSAGES.SUCCESS.EMERGENCY_CONTACTS_UPDATED,
+                data: user
             });
         } catch (error) {
             res.status(400).json({
@@ -130,21 +130,21 @@ export default class HelperController {
     }
 
     /**
-     * Update helper skills
+     * Add emergency contact
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
-    static async updateSkills(req, res) {
+    static async addEmergencyContact(req, res) {
         try {
             const { id } = req.params;
-            const { skills } = req.body;
+            const contact = req.body;
 
-            const helper = await HelperService.updateHelper(id, { skills });
+            const user = await UserService.addEmergencyContact(id, contact);
 
             res.status(200).json({
                 success: true,
-                message: HelperConstants.MESSAGES.SUCCESS.SKILLS_UPDATED,
-                data: helper
+                message: 'Emergency contact added successfully',
+                data: user
             });
         } catch (error) {
             res.status(400).json({
@@ -155,21 +155,20 @@ export default class HelperController {
     }
 
     /**
-     * Verify helper credentials (Admin only)
+     * Remove emergency contact
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
-    static async verifyCredentials(req, res) {
+    static async removeEmergencyContact(req, res) {
         try {
-            const { id, credentialId } = req.params;
-            const { status } = req.body;
+            const { id, contactId } = req.params;
 
-            const helper = await HelperService.verifyCredentials(id, credentialId, status);
+            const user = await UserService.removeEmergencyContact(id, contactId);
 
             res.status(200).json({
                 success: true,
-                message: HelperConstants.MESSAGES.SUCCESS.HELPER_VERIFIED,
-                data: helper
+                message: 'Emergency contact removed successfully',
+                data: user
             });
         } catch (error) {
             res.status(400).json({
@@ -180,21 +179,21 @@ export default class HelperController {
     }
 
     /**
-     * Award badge to helper (Admin only)
+     * Update medical information reference
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
-    static async awardBadge(req, res) {
+    static async updateMedicalInfo(req, res) {
         try {
             const { id } = req.params;
-            const { badgeType } = req.body;
+            const { medicalId } = req.body;
 
-            const helper = await HelperService.awardBadge(id, badgeType);
+            const user = await UserService.updateMedicalInfo(id, medicalId);
 
             res.status(200).json({
                 success: true,
-                message: HelperConstants.MESSAGES.SUCCESS.BADGE_AWARDED,
-                data: helper
+                message: 'Medical information updated successfully',
+                data: user
             });
         } catch (error) {
             res.status(400).json({
@@ -205,35 +204,76 @@ export default class HelperController {
     }
 
     /**
-     * Search helpers
+     * Update location reference
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
-    static async searchHelpers(req, res) {
+    static async updateLocation(req, res) {
+        try {
+            const { id } = req.params;
+            const { locationId } = req.body;
+
+            const user = await UserService.updateLocation(id, locationId);
+
+            res.status(200).json({
+                success: true,
+                message: 'Location updated successfully',
+                data: user
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    /**
+     * Get user dashboard
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    static async getDashboard(req, res) {
+        try {
+            const { id } = req.params;
+            const dashboard = await UserService.getUserDashboard(id);
+
+            res.status(200).json({
+                success: true,
+                data: dashboard
+            });
+        } catch (error) {
+            res.status(404).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    /**
+     * Search users
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    static async searchUsers(req, res) {
         try {
             const filters = {
-                skills: req.query.skills ? req.query.skills.split(',') : [],
-                categories: req.query.categories ? req.query.categories.split(',') : [],
-                minRating: req.query.minRating ? parseFloat(req.query.minRating) : undefined,
-                isVolunteer: req.query.isVolunteer ? req.query.isVolunteer === 'true' : undefined,
-                maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice) : undefined,
-                userLocation: req.query.lat && req.query.lng ? {
-                    lat: parseFloat(req.query.lat),
-                    lng: parseFloat(req.query.lng)
-                } : undefined
+                role: req.query.role,
+                profileCompleted: req.query.profileCompleted ? req.query.profileCompleted === 'true' : undefined,
+                hasEmergencyContacts: req.query.hasEmergencyContacts ? req.query.hasEmergencyContacts === 'true' : undefined
             };
 
             const options = {
-                page: parseInt(req.query.page) || HelperConstants.PAGINATION.DEFAULT_PAGE,
+                page: parseInt(req.query.page) || UserConstants.PAGINATION.DEFAULT_PAGE,
                 limit: Math.min(
-                    parseInt(req.query.limit) || HelperConstants.PAGINATION.DEFAULT_LIMIT,
-                    HelperConstants.PAGINATION.MAX_LIMIT
+                    parseInt(req.query.limit) || UserConstants.PAGINATION.DEFAULT_LIMIT,
+                    UserConstants.PAGINATION.MAX_LIMIT
                 ),
-                sortBy: req.query.sortBy || 'rating',
+                sortBy: req.query.sortBy || 'createdAt',
                 sortOrder: req.query.sortOrder || 'desc'
             };
 
-            const result = await HelperService.searchHelpers(filters, options);
+            const result = await UserService.searchUsers(filters, options);
 
             res.status(200).json({
                 success: true,
@@ -248,49 +288,25 @@ export default class HelperController {
     }
 
     /**
-     * Update performance metrics (Internal/System use)
+     * Delete user profile (Admin only)
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
-    static async updateMetrics(req, res) {
-        try {
-            const { id } = req.params;
-            const metrics = req.body;
-
-            const helper = await HelperService.updatePerformanceMetrics(id, metrics);
-
-            res.status(200).json({
-                success: true,
-                data: helper
-            });
-        } catch (error) {
-            res.status(400).json({
-                success: false,
-                message: error.message
-            });
-        }
-    }
-
-    /**
-     * Delete helper profile (Admin only)
-     * @param {Object} req - Express request object
-     * @param {Object} res - Express response object
-     */
-    static async deleteHelper(req, res) {
+    static async deleteUser(req, res) {
         try {
             const { id } = req.params;
 
-            const deleted = await HelperService.deleteHelper(id);
+            const deleted = await UserService.deleteUser(id);
 
             if (deleted) {
                 res.status(200).json({
                     success: true,
-                    message: 'Helper profile deleted successfully'
+                    message: 'User profile deleted successfully'
                 });
             } else {
                 res.status(404).json({
                     success: false,
-                    message: HelperConstants.MESSAGES.ERROR.HELPER_NOT_FOUND
+                    message: UserConstants.MESSAGES.ERROR.USER_NOT_FOUND
                 });
             }
         } catch (error) {
