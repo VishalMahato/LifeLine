@@ -262,9 +262,10 @@ export class EmergencyService {
    * Get emergency by ID
    * @param {string} emergencyId - Emergency ID
    * @param {string} userId - User requesting access
+   * @param {string} userRole - Requesting user's role
    * @returns {Promise<Object>} Emergency data
    */
-  static async getEmergency(emergencyId, userId) {
+  static async getEmergency(emergencyId, userId, userRole = null) {
     try {
       const emergency = await Emergency.findById(emergencyId)
         .populate('userId', 'name email phoneNumber')
@@ -275,7 +276,7 @@ export class EmergencyService {
       }
 
       // Check if user has access (owner, assigned helper, or admin)
-      const hasAccess = this.checkEmergencyAccess(emergency, userId);
+      const hasAccess = this.checkEmergencyAccess(emergency, userId, userRole);
       if (!hasAccess) {
         throw new Error(EmergencyConstants.MESSAGES.ERROR.UNAUTHORIZED);
       }
@@ -450,11 +451,16 @@ export class EmergencyService {
    * Check if user has access to emergency
    * @param {Object} emergency - Emergency object
    * @param {string} userId - User ID
+   * @param {string} userRole - User role
    * @returns {boolean} Access granted
    */
-  static checkEmergencyAccess(emergency, userId) {
+  static checkEmergencyAccess(emergency, userId, userRole = null) {
     const normalizedUserId = String(userId);
     const ownerId = String(emergency.userId?._id || emergency.userId);
+
+    if (userRole === 'admin') {
+      return true;
+    }
 
     // Owner has access
     if (ownerId === normalizedUserId) {
@@ -469,7 +475,6 @@ export class EmergencyService {
       return true;
     }
 
-    // TODO: Add admin check
     return false;
   }
 }

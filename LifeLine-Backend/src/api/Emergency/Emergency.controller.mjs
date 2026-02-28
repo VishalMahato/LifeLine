@@ -76,8 +76,9 @@ export class EmergencyController {
     try {
       const { id } = req.params;
       const userId = req.user.userId;
+      const userRole = req.user.role;
 
-      const result = await EmergencyService.getEmergency(id, userId);
+      const result = await EmergencyService.getEmergency(id, userId, userRole);
 
       res.json(result);
     } catch (error) {
@@ -242,9 +243,10 @@ export class EmergencyController {
       const { id } = req.params;
       const userId = req.user.userId;
       const updateData = req.body;
+      const userRole = req.user.role;
 
       // Get emergency first to check access
-      const emergencyResult = await EmergencyService.getEmergency(id, userId);
+      const emergencyResult = await EmergencyService.getEmergency(id, userId, userRole);
       if (!emergencyResult.success) {
         return res.status(403).json(emergencyResult);
       }
