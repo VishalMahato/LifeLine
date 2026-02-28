@@ -24,6 +24,54 @@ class AuthService {
     }
 
     /**
+     * Ensure the auth record is linked to a user/helper profile.
+     * Creates a minimal profile during signup updates when missing.
+     * @param {Object} auth
+     * @returns {Promise<Object>}
+     */
+    static async ensureLinkedProfile(auth) {
+        if (!auth) {
+            throw new Error('Auth record not found');
+        }
+
+        if (auth.role === AuthConstants.ROLES.USER && !auth.userId) {
+            const createdUser = await UserService.createUser({
+                authId: auth._id,
+                fullName: auth.name,
+                email: auth.email,
+                phoneNumber: auth.phoneNumber,
+            });
+
+            return await Auth.findByIdAndUpdate(
+                auth._id,
+                { userId: createdUser.id },
+                { new: true },
+            )
+                .populate('userId')
+                .populate('helperId');
+        }
+
+        if (auth.role === AuthConstants.ROLES.HELPER && !auth.helperId) {
+            const createdHelper = await HelperService.createHelper({
+                authId: auth._id,
+                fullName: auth.name,
+                email: auth.email,
+                phoneNumber: auth.phoneNumber,
+            });
+
+            return await Auth.findByIdAndUpdate(
+                auth._id,
+                { helperId: createdHelper.id },
+                { new: true },
+            )
+                .populate('userId')
+                .populate('helperId');
+        }
+
+        return auth;
+    }
+
+    /**
      * Create initial auth record (Signup Step 1)
      * @param {Object} authData - Authentication data
      * @returns {Promise<Object>} Created auth record
@@ -669,8 +717,13 @@ class AuthService {
      */
     static async updateEmergencyContacts(authId, emergencyContacts) {
         try {
-            const auth = await Auth.findById(authId).populate('userId');
-            if (!auth || !auth.userId) {
+            let auth = await Auth.findById(authId).populate('userId').populate('helperId');
+            if (!auth) {
+                throw new Error('Auth record not found');
+            }
+
+            auth = await this.ensureLinkedProfile(auth);
+            if (auth.role !== AuthConstants.ROLES.USER || !auth.userId) {
                 throw new Error('User profile not found');
             }
 
@@ -689,7 +742,12 @@ class AuthService {
      */
     static async updateMedicalInfo(authId, medicalData) {
         try {
-            const auth = await Auth.findById(authId).populate('userId').populate('helperId');
+            let auth = await Auth.findById(authId).populate('userId').populate('helperId');
+            if (!auth) {
+                throw new Error('Auth record not found');
+            }
+
+            auth = await this.ensureLinkedProfile(auth);
             const profileId = auth.userId?._id || auth.helperId?._id;
 
             if (!profileId) {
@@ -732,7 +790,12 @@ class AuthService {
      */
     static async updateLocation(authId, locationData) {
         try {
-            const auth = await Auth.findById(authId).populate('userId').populate('helperId');
+            let auth = await Auth.findById(authId).populate('userId').populate('helperId');
+            if (!auth) {
+                throw new Error('Auth record not found');
+            }
+
+            auth = await this.ensureLinkedProfile(auth);
             const profileId = auth.userId?._id || auth.helperId?._id;
 
             if (!profileId) {

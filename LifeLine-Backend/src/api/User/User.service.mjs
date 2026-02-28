@@ -10,6 +10,45 @@ import UserConstants from './User.constants.mjs';
  */
 export default class UserService {
     /**
+     * Normalize contacts for storage by removing duplicates and ensuring a single primary contact.
+     * @param {Array} emergencyContacts
+     * @returns {Array}
+     */
+    static prepareEmergencyContacts(emergencyContacts) {
+        const sanitizedContacts =
+            UserUtils.sanitizeUserData({ emergencyContacts }).emergencyContacts || [];
+
+        const dedupedContacts = [];
+        const seen = new Set();
+
+        sanitizedContacts.forEach((contact) => {
+            const normalizedPhone = String(contact.phoneNumber || '').replace(/\D/g, '');
+            const key = `${String(contact.name || '').toLowerCase()}::${normalizedPhone}`;
+            if (seen.has(key)) {
+                return;
+            }
+
+            seen.add(key);
+            dedupedContacts.push(contact);
+        });
+
+        if (dedupedContacts.length === 0) {
+            return dedupedContacts;
+        }
+
+        let primaryIndex = dedupedContacts.findIndex((contact) => contact.isPrimary);
+        if (primaryIndex < 0) {
+            primaryIndex = 0;
+        }
+
+        dedupedContacts.forEach((contact, index) => {
+            contact.isPrimary = index === primaryIndex;
+        });
+
+        return dedupedContacts;
+    }
+
+    /**
      * Create a new user profile
      * @param {Object} userData - User profile data
      * @returns {Promise<Object>} Created user profile
@@ -171,12 +210,15 @@ export default class UserService {
                 throw new Error(UserConstants.MESSAGES.VALIDATION.INVALID_EMERGENCY_CONTACTS);
             }
 
-            const sanitizedContacts = UserUtils.sanitizeUserData({ emergencyContacts }).emergencyContacts;
+            const preparedContacts = this.prepareEmergencyContacts(emergencyContacts);
+            if (preparedContacts.length === 0) {
+                throw new Error(UserConstants.MESSAGES.VALIDATION.INVALID_EMERGENCY_CONTACTS);
+            }
 
             const user = await User.findByIdAndUpdate(
                 userId,
                 {
-                    emergencyContacts: sanitizedContacts,
+                    emergencyContacts: preparedContacts,
                     profileCompleted: true, // Emergency contacts make profile complete
                     updatedAt: new Date()
                 },
@@ -211,10 +253,11 @@ export default class UserService {
                 throw new Error(UserConstants.MESSAGES.VALIDATION.INVALID_EMERGENCY_CONTACTS);
             }
 
-            // Sanitize contact
-            const sanitizedContact = UserUtils.sanitizeUserData({ emergencyContacts: [contact] }).emergencyContacts[0];
-
-            user.emergencyContacts.push(sanitizedContact);
+            const preparedContacts = this.prepareEmergencyContacts([
+                ...user.emergencyContacts.map((entry) => entry.toObject ? entry.toObject() : entry),
+                contact,
+            ]);
+            user.emergencyContacts = preparedContacts;
             user.updatedAt = new Date();
 
             await user.save();

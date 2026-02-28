@@ -9,11 +9,17 @@ import UserInfo, {
   type UserInfoHandle,
   type UserInfoSubmitPayload,
 } from "@/src/features/auth/screens/UserInfo";
-import EmergencyContactsScreen from "@/src/features/auth/screens/EmergencyContacts";
+import EmergencyContactsScreen, {
+  type EmergencyContactsHandle,
+  type EmergencyContactsPayload,
+} from "@/src/features/auth/screens/EmergencyContacts";
 import VerifySkillsScreen from "@/src/features/auth/screens/VerifySkillsScreen";
 import MedicalInfoScreen from "@/src/features/auth/screens/MedicalInfoScreen";
 import SecureLocationScreen from "@/src/features/auth/screens/SecureLocationScreen";
-import { createUserAuth } from "@/src/features/auth/authSlice";
+import {
+  createUserAuth,
+  updateSignupEmergencyContacts,
+} from "@/src/features/auth/authSlice";
 import { useAppDispatch, useAppSelector } from "@/src/core/store";
 
 const userSignUpSteps = [
@@ -52,12 +58,13 @@ const helperSignUpSteps = [
 
 const SignUp = () => {
   const dispatch = useAppDispatch();
-  const { isLoading, userData } = useAppSelector((state) => state.auth);
+  const { isLoading, userData, authId } = useAppSelector((state) => state.auth);
   const [currentRole, setCurrentRole] = React.useState<
     "user" | "helper" | null
   >(userData?.role || null);
   const [currentStep, setCurrentStep] = React.useState(0);
   const userInfoRef = useRef<UserInfoHandle>(null);
+  const emergencyContactsRef = useRef<EmergencyContactsHandle>(null);
   const currentSteps =
     currentRole === "helper" ? helperSignUpSteps : userSignUpSteps;
   const isLastStep = currentStep === currentSteps.length - 1;
@@ -72,6 +79,21 @@ const SignUp = () => {
       await dispatch(createUserAuth(payload.formData)).unwrap();
     }
     setCurrentStep(1);
+  };
+
+  const handleEmergencyContactsSubmit = async (
+    contacts: EmergencyContactsPayload[],
+  ) => {
+    if (!authId) {
+      throw new Error("Signup session was not found. Please restart signup.");
+    }
+
+    await dispatch(
+      updateSignupEmergencyContacts({
+        authId,
+        emergencyContacts: contacts,
+      }),
+    ).unwrap();
   };
 
   const handleNext = async () => {
@@ -90,6 +112,17 @@ const SignUp = () => {
       return;
     }
 
+    if (currentRole === "user" && currentStep === 1) {
+      if (!emergencyContactsRef.current) {
+        return;
+      }
+
+      const success = await emergencyContactsRef.current.handleSubmit();
+      if (!success) {
+        return;
+      }
+    }
+
     goToNextStep();
   };
 
@@ -103,6 +136,11 @@ const SignUp = () => {
     <View style={{ flex: 1 }}>
       {currentStep === 0 ? (
         <UserInfo ref={userInfoRef} onSubmit={handleUserInfoSubmit} />
+      ) : currentRole === "user" && currentStep === 1 ? (
+        <EmergencyContactsScreen
+          ref={emergencyContactsRef}
+          onSubmit={handleEmergencyContactsSubmit}
+        />
       ) : (
         currentSteps[currentStep].Element
       )}

@@ -38,6 +38,56 @@ interface CreateUserAuthResult {
   };
 }
 
+interface EmergencyContactPayload {
+  name: string;
+  relationship: string;
+  phoneNumber: string;
+  isPrimary: boolean;
+}
+
+interface MedicalSignupPayload {
+  bloodType?: string;
+  dateOfBirth?: string;
+  height?: { value: number; unit: "cm" | "ft" };
+  weight?: { value: number; unit: "kg" | "lbs" };
+  allergies?: {
+    substance: string;
+    severity: "mild" | "moderate" | "severe" | "life_threatening";
+    reaction: string;
+    discoveredDate: string;
+  }[];
+  conditions?: {
+    name: string;
+    status: "active" | "inactive" | "resolved" | "chronic";
+    notes?: string;
+    diagnosisDate: string;
+    treatedBy: string;
+  }[];
+  medications?: {
+    name: string;
+    dosage?: string;
+    frequency:
+      | "as_needed"
+      | "daily"
+      | "twice_daily"
+      | "three_times_daily"
+      | "four_times_daily"
+      | "weekly"
+      | "monthly";
+    purpose?: string;
+    prescribedBy: string;
+    prescriptionDate: string;
+  }[];
+  disabilities?: string;
+  organDonor?: boolean;
+}
+
+interface SignupStepResult {
+  success?: boolean;
+  message?: string;
+  data?: Record<string, unknown>;
+}
+
 interface LoginResult {
   user?: {
     name?: string;
@@ -188,6 +238,48 @@ export const loginUser = createAsyncThunk<
   }
 });
 
+export const updateSignupEmergencyContacts = createAsyncThunk<
+  SignupStepResult,
+  { authId: string; emergencyContacts: EmergencyContactPayload[] },
+  { rejectValue: string }
+>(
+  "auth/updateSignupEmergencyContacts",
+  async ({ authId, emergencyContacts }, { rejectWithValue }) => {
+    try {
+      const response = await axios.patch(
+        `${getApiBaseUrl()}/signup/emergency-contacts/${authId}`,
+        { emergencyContacts },
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        errorMessage(error, "Failed to save emergency contacts"),
+      );
+    }
+  },
+);
+
+export const updateSignupMedicalInfo = createAsyncThunk<
+  SignupStepResult,
+  { authId: string; medicalInfo: MedicalSignupPayload },
+  { rejectValue: string }
+>(
+  "auth/updateSignupMedicalInfo",
+  async ({ authId, medicalInfo }, { rejectWithValue }) => {
+    try {
+      const response = await axios.patch(
+        `${getApiBaseUrl()}/signup/medical/${authId}`,
+        medicalInfo,
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(errorMessage(error, "Failed to save medical info"));
+    }
+  },
+);
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -261,6 +353,28 @@ const authSlice = createSlice({
       .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload || "Failed to login";
+      })
+      .addCase(updateSignupEmergencyContacts.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(updateSignupEmergencyContacts.fulfilled, (state) => {
+        state.isLoading = false;
+      })
+      .addCase(updateSignupEmergencyContacts.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || "Failed to save emergency contacts";
+      })
+      .addCase(updateSignupMedicalInfo.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(updateSignupMedicalInfo.fulfilled, (state) => {
+        state.isLoading = false;
+      })
+      .addCase(updateSignupMedicalInfo.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || "Failed to save medical info";
       });
   },
 });

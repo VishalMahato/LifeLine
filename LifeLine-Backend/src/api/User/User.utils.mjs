@@ -7,6 +7,56 @@ import UserConstants from './User.constants.mjs';
  * @since 2026
  */
 export default class UserUtils {
+    static EMERGENCY_RELATIONSHIPS = new Set([
+        'parent',
+        'spouse',
+        'sibling',
+        'child',
+        'friend',
+        'other',
+    ]);
+
+    static EMERGENCY_RELATIONSHIP_ALIASES = {
+        mom: 'parent',
+        mother: 'parent',
+        dad: 'parent',
+        father: 'parent',
+        husband: 'spouse',
+        wife: 'spouse',
+        partner: 'spouse',
+        boyfriend: 'spouse',
+        girlfriend: 'spouse',
+        brother: 'sibling',
+        sister: 'sibling',
+        son: 'child',
+        daughter: 'child',
+    };
+
+    /**
+     * Normalize emergency contact input across payload variants.
+     * Accepts both legacy and newer keys and returns canonical shape.
+     * @param {Object} contact
+     * @returns {{name: string, relationship: string, phoneNumber: string, isPrimary: boolean, email?: string}}
+     */
+    static normalizeEmergencyContact(contact = {}) {
+        const rawName = contact.name ?? contact.fullName ?? '';
+        const rawRelationship = contact.relationship ?? contact.relation ?? '';
+        const rawPhone = contact.phoneNumber ?? contact.phone ?? '';
+
+        const relationshipRaw = String(rawRelationship).trim().toLowerCase();
+        const relationship = this.EMERGENCY_RELATIONSHIPS.has(relationshipRaw)
+            ? relationshipRaw
+            : (this.EMERGENCY_RELATIONSHIP_ALIASES[relationshipRaw] || relationshipRaw);
+
+        return {
+            name: String(rawName).trim(),
+            relationship,
+            phoneNumber: String(rawPhone).trim(),
+            isPrimary: Boolean(contact.isPrimary ?? contact.primary),
+            email: typeof contact.email === 'string' ? contact.email.toLowerCase().trim() : undefined,
+        };
+    }
+
     /**
      * Validate emergency contacts array
      * @param {Array} emergencyContacts
@@ -16,11 +66,17 @@ export default class UserUtils {
         if (!Array.isArray(emergencyContacts)) return false;
 
         return emergencyContacts.every(contact => {
-            return contact.name &&
-                   contact.phoneNumber &&
-                   contact.relationship &&
-                   Object.values(UserConstants.EMERGENCY_CONTACT_TYPES).includes(contact.type) &&
-                   (!contact.email || this.isValidEmail(contact.email));
+            const normalized = this.normalizeEmergencyContact(contact);
+            return (
+                normalized.name &&
+                normalized.phoneNumber &&
+                normalized.relationship &&
+                this.EMERGENCY_RELATIONSHIPS.has(normalized.relationship) &&
+                /^[+]?[\d\s\-()]+$/.test(normalized.phoneNumber) &&
+                normalized.phoneNumber.replace(/\D/g, '').length >= 10 &&
+                normalized.phoneNumber.replace(/\D/g, '').length <= 15 &&
+                (!normalized.email || this.isValidEmail(normalized.email))
+            );
         });
     }
 
@@ -106,13 +162,16 @@ export default class UserUtils {
 
         // Sanitize emergency contacts
         if (sanitized.emergencyContacts) {
-            sanitized.emergencyContacts = sanitized.emergencyContacts.map(contact => ({
-                ...contact,
-                name: contact.name?.trim(),
-                phoneNumber: contact.phoneNumber?.trim(),
-                email: contact.email?.toLowerCase()?.trim(),
-                relationship: contact.relationship?.trim()
-            }));
+            sanitized.emergencyContacts = sanitized.emergencyContacts.map(contact => {
+                const normalized = this.normalizeEmergencyContact(contact);
+                return {
+                    name: normalized.name,
+                    phoneNumber: normalized.phoneNumber,
+                    email: normalized.email,
+                    relationship: normalized.relationship,
+                    isPrimary: normalized.isPrimary,
+                };
+            });
         }
 
         return sanitized;
