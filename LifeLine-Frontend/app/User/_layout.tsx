@@ -1,6 +1,6 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
-import * as Speech from "expo-speech";
+import { router } from "expo-router";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { heightPercentageToDP as hp } from "react-native-responsive-screen";
@@ -11,20 +11,9 @@ import SOSActiveAIScreen from "../(global)/SOSActiveAIScreen";
 
 import NearbyScreen from "./Nearby";
 import Profile from "./Profile/Profile";
-import MedicalProfile from "./Profile/MedicalProfile";
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
-
-const speak = () => {
-  const thingToSay =
-    "Hii I am your AI assistant. I am here to help you. Please tell me how can I assist you?";
-  Speech.speak(thingToSay, {
-    language: "en",
-    pitch: 1,
-    rate: 1,
-  });
-};
 
 export const ProfileStack = () => {
   return (
@@ -33,11 +22,6 @@ export const ProfileStack = () => {
         name="Profile"
         component={Profile}
         options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="MedicalProfile"
-        component={MedicalProfile}
-        options={{ headerTitle: "Medical Profile" }}
       />
     </Stack.Navigator>
   );
@@ -77,11 +61,11 @@ export default function Layout() {
       <Tab.Screen
         name="SOS"
         component={SOSActiveAIScreen}
-        listeners={({ navigation }) => ({
+        listeners={() => ({
           tabPress: (e) => {
             // Prevent default action
             e.preventDefault();
-            speak();
+            router.push("/(global)/SOSActiveAIScreen");
           },
         })}
         options={{
