@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "LifeLine",
+    "slug": "lifeline",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "android": {
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "RECORD_AUDIO",
+        "FOREGROUND_SERVICE"
+      ]
+    },
+    "ios": {
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "LifeLine needs your location to send help during emergencies.",
+        "NSCameraUsageDescription": "Camera is used to record emergency evidence.",
+        "NSMicrophoneUsageDescription": "Microphone is used for audio recording during emergencies."
+      }
+    }
+  }
+}
