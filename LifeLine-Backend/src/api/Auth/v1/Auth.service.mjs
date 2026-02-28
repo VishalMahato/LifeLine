@@ -262,11 +262,17 @@ class AuthService {
             // TODO: Send email with reset token
             // await EmailService.sendPasswordResetEmail(auth.email, resetToken);
 
-            return {
+            const response = {
                 success: true,
-                message: AuthConstants.MESSAGES.SUCCESS.PASSWORD_RESET_SENT,
-                resetToken // Remove in production, only for testing
+                message: AuthConstants.MESSAGES.SUCCESS.PASSWORD_RESET_SENT
             };
+
+            // Keep token only for non-production diagnostics.
+            if (process.env.NODE_ENV !== 'production') {
+                response.resetToken = resetToken;
+            }
+
+            return response;
         } catch (error) {
             throw new Error(`Password reset request failed: ${error.message}`);
         }
