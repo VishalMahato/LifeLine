@@ -11,23 +11,53 @@ import SOSActiveAIScreen from "../(global)/SOSActiveAIScreen";
 
 import NearbyScreen from "./Nearby";
 import AccountDetails from "./Profile/AccountDetails";
+import HistoryScreen from "./Profile/History";
 import Profile from "./Profile/Profile";
+import SavedAddress from "./Profile/SavedAddress";
+import HelperProfileScreen from "./Helper/[helperId]";
+import NgoProfileScreen from "./Helper/[ngoId]";
+import RequestHelpScreen from "./Helper/HelperRequest";
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 export const ProfileStack = () => {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen
         name="Profile"
         component={Profile}
-        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="AccountDetails"
         component={AccountDetails}
-        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="SavedAddress"
+        component={SavedAddress}
+      />
+      <Stack.Screen
+        name="History"
+        component={HistoryScreen}
+      />
+    </Stack.Navigator>
+  );
+};
+
+export const HelperStack = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen
+        name="HelperRequest"
+        component={RequestHelpScreen}
+      />
+      <Stack.Screen
+        name="HelperProfile"
+        component={HelperProfileScreen}
+      />
+      <Stack.Screen
+        name="NgoProfile"
+        component={NgoProfileScreen}
       />
     </Stack.Navigator>
   );
@@ -78,18 +108,18 @@ export default function Layout() {
           tabBarLabel: "",
           tabBarIcon: () => (
             <View style={styles.centerButton}>
-              <Ionicons name="snow" size={28} color="#fff" />
+              <Ionicons name="warning" size={28} color="#fff" />
             </View>
           ),
         }}
       />
 
       <Tab.Screen
-        name="Safety"
-        component={Profile} // Changed to ProfileStack
+        name="Helpers"
+        component={HelperStack}
         options={{
           tabBarIcon: ({ color }) => (
-            <Ionicons name="shield-checkmark" size={22} color={color} />
+            <Ionicons name="people" size={22} color={color} />
           ),
         }}
       />

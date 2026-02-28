@@ -54,7 +54,11 @@ export default function Profile() {
       title: 'Account Details',
       onPress: () => navigation.navigate('AccountDetails'),
     },
-    { icon: 'location', title: 'Saved Addresses' },
+    {
+      icon: 'location',
+      title: 'Saved Addresses',
+      onPress: () => navigation.navigate('SavedAddress'),
+    },
   ]
 
   const safetyItems: ProfileItem[] = [
@@ -75,6 +79,7 @@ export default function Profile() {
       icon: 'time',
       title: 'Emergency History',
       subtitle: '2 active alerts last month',
+      onPress: () => navigation.navigate('History'),
     },
   ]
 
