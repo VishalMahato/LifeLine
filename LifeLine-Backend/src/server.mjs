@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { connectDB, disconnectDB } from './config/mongo.config.mjs';
+import { connectDB, disconnectDB, getMongoStatus, isDBConnected } from './config/mongo.config.mjs';
 
 // Load environment variables
 dotenv.config();
@@ -10,21 +10,26 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors({
+app.use(
+  cors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
-    credentials: true
-}));
+    credentials: true,
+  }),
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        message: 'LifeLine Backend is running',
-        timestamp: new Date().toISOString()
-    });
+  const dbConnected = isDBConnected();
+
+  res.json({
+    status: dbConnected ? 'ok' : 'degraded',
+    message: 'LifeLine Backend is running',
+    timestamp: new Date().toISOString(),
+    database: getMongoStatus(),
+  });
 });
 
 // API Routes will be imported here
@@ -32,56 +37,84 @@ app.get('/health', (req, res) => {
 
 // 404 handler
 app.use((req, res) => {
-    res.status(404).json({
-        success: false,
-        message: 'Route not found'
-    });
+  res.status(404).json({
+    success: false,
+    message: 'Route not found',
+  });
 });
 
 // Error handler
 app.use((err, req, res, next) => {
-    console.error('Error:', err);
-    res.status(err.status || 500).json({
-        success: false,
-        message: err.message || 'Internal server error'
-    });
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal server error',
+  });
 });
 
 // Connect to MongoDB and start server
 const PORT = process.env.PORT || 5000;
+const DB_RETRY_DELAY_MS = Number(process.env.DB_RETRY_DELAY_MS || 10000);
+const MONGODB_REQUIRED = process.env.MONGODB_REQUIRED === 'true';
+let dbReconnectTimer;
+
+const scheduleDBReconnect = () => {
+  if (dbReconnectTimer) {
+    return;
+  }
+
+  dbReconnectTimer = setTimeout(async () => {
+    dbReconnectTimer = null;
+    await connectDBWithRetry();
+  }, DB_RETRY_DELAY_MS);
+};
+
+const connectDBWithRetry = async () => {
+  try {
+    await connectDB();
+  } catch (error) {
+    console.warn(
+      `⚠️ MongoDB unavailable. Retrying in ${DB_RETRY_DELAY_MS / 1000}s. Reason: ${error.message}`,
+    );
+    scheduleDBReconnect();
+
+    if (MONGODB_REQUIRED) {
+      throw error;
+    }
+  }
+};
 
 const startServer = async () => {
-    try {
-        // Connect to MongoDB
-        await connectDB();
+  try {
+    // Start Express server
+    const server = app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+      console.log(`🗄️ MongoDB required: ${MONGODB_REQUIRED}`);
+    });
 
-        // Start Express server
-        const server = app.listen(PORT, () => {
-            console.log(`🚀 Server running on port ${PORT}`);
-            console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-        });
+    await connectDBWithRetry();
 
-        // Graceful shutdown
-        process.on('SIGTERM', async () => {
-            console.log('SIGTERM received. Shutting down gracefully...');
-            server.close(async () => {
-                await disconnectDB();
-                process.exit(0);
-            });
-        });
+    // Graceful shutdown
+    process.on('SIGTERM', async () => {
+      console.log('SIGTERM received. Shutting down gracefully...');
+      server.close(async () => {
+        await disconnectDB();
+        process.exit(0);
+      });
+    });
 
-        process.on('SIGINT', async () => {
-            console.log('\nSIGINT received. Shutting down gracefully...');
-            server.close(async () => {
-                await disconnectDB();
-                process.exit(0);
-            });
-        });
-
-    } catch (error) {
-        console.error('Failed to start server:', error);
-        process.exit(1);
-    }
+    process.on('SIGINT', async () => {
+      console.log('\nSIGINT received. Shutting down gracefully...');
+      server.close(async () => {
+        await disconnectDB();
+        process.exit(0);
+      });
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
 };
 
 // Start the server

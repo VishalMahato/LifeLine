@@ -7,6 +7,7 @@ This document outlines the complete implementation strategy for the LifeLine Aut
 ## Current Status
 
 ### Existing
+
 - `Auth.model.mjs` - MongoDB schema defined
 - `Auth.service.mjs` - Empty service class
 - `Auth.controller.mjs` - Empty
@@ -14,6 +15,7 @@ This document outlines the complete implementation strategy for the LifeLine Aut
 - `Auth.utils.mjs` - Empty
 
 ### Missing Core Features
+
 - OTP generation and verification
 - JWT token management
 - Password hashing (if using password auth)
@@ -32,6 +34,7 @@ This document outlines the complete implementation strategy for the LifeLine Aut
 ### 1. Authentication Flow Design
 
 #### Registration Flow
+
 1. User submits signup data (name, email/phone, role)
 2. Validate input data
 3. Check if user already exists
@@ -44,6 +47,7 @@ This document outlines the complete implementation strategy for the LifeLine Aut
 10. Return user data + tokens
 
 #### Login Flow
+
 1. User submits email/phone + credentials/OTP
 2. Validate input
 3. Find and verify user exists
@@ -54,6 +58,7 @@ This document outlines the complete implementation strategy for the LifeLine Aut
 8. Return auth response
 
 #### Token Refresh Flow
+
 1. Client sends refresh token
 2. Validate refresh token
 3. Generate new access token
@@ -66,29 +71,28 @@ This document outlines the complete implementation strategy for the LifeLine Aut
 ### `Auth.utils.mjs`
 
 #### Required Functions
+
 ```javascript
 // Token utilities
-- generateAccessToken(payload)
-- generateRefreshToken(payload)
-- verifyToken(token)
-
-// OTP utilities
-- generateOTP(length = 6)
-- hashOTP(otp)
-- verifyOTP(inputOTP, hashedOTP)
-
-// Validation utilities
-- validateEmail(email)
-- validatePhone(phone)
-- validatePassword(password)
-- sanitizeAuthInput(data)
-
-// Response utilities
-- createAuthResponse(user, tokens)
-- formatUserData(user)
+-generateAccessToken(payload) -
+  generateRefreshToken(payload) -
+  verifyToken(token) -
+  // OTP utilities
+  generateOTP((length = 6)) -
+  hashOTP(otp) -
+  verifyOTP(inputOTP, hashedOTP) -
+  // Validation utilities
+  validateEmail(email) -
+  validatePhone(phone) -
+  validatePassword(password) -
+  sanitizeAuthInput(data) -
+  // Response utilities
+  createAuthResponse(user, tokens) -
+  formatUserData(user);
 ```
 
 #### Dependencies
+
 - `jsonwebtoken` for JWT
 - `bcryptjs` for hashing
 - `crypto` for secure random generation
@@ -104,23 +108,23 @@ class AuthService {
   // Registration
   async signUp(userData)
   async verifySignUpOTP(authId, otp)
-  
+
   // Login
   async login(credentials)
   async requestLoginOTP(identifier)
   async verifyLoginOTP(identifier, otp)
-  
+
   // Token Management
   async refreshAccessToken(refreshToken)
   async logout(userId, deviceId)
   async logoutAllDevices(userId)
-  
+
   // Account Management
   async resendVerificationOTP(authId)
   async forgotPassword(identifier)
   async resetPassword(token, newPassword)
   async updateProfile(authId, updateData)
-  
+
   // Admin Actions
   async blockUser(authId, reason)
   async unblockUser(authId)
@@ -162,13 +166,13 @@ class AuthController {
   async refreshToken(req, res, next)
   async forgotPassword(req, res, next)
   async resetPassword(req, res, next)
-  
+
   // Protected routes
   async logout(req, res, next)
   async logoutAll(req, res, next)
   async getProfile(req, res, next)
   async updateProfile(req, res, next)
-  
+
   // Admin routes
   async blockUser(req, res, next)
   async unblockUser(req, res, next)
@@ -176,6 +180,7 @@ class AuthController {
 ```
 
 #### Controller Responsibilities
+
 - Input validation
 - Service method calls
 - Response formatting
@@ -211,6 +216,7 @@ PATCH  /api/v1/auth/:authId/unblock
 ```
 
 #### Middleware Integration
+
 - Rate limiter for auth endpoints
 - Validation middleware
 - JWT auth middleware
@@ -223,6 +229,7 @@ PATCH  /api/v1/auth/:authId/unblock
 ### Additional Models Needed
 
 #### 1. OTP Schema (`src/api/Auth/v1/OTP.model.mjs`)
+
 ```javascript
 {
   authId: ObjectId,
@@ -236,6 +243,7 @@ PATCH  /api/v1/auth/:authId/unblock
 ```
 
 #### 2. Session Schema (`src/api/Auth/v1/Session.model.mjs`)
+
 ```javascript
 {
   authId: ObjectId,
@@ -249,6 +257,7 @@ PATCH  /api/v1/auth/:authId/unblock
 ```
 
 #### 3. Token Blacklist (`src/api/Auth/v1/TokenBlacklist.model.mjs`)
+
 ```javascript
 {
   token: String,
@@ -260,15 +269,18 @@ PATCH  /api/v1/auth/:authId/unblock
 ### Middleware Files Needed
 
 #### 1. Auth Middleware (`src/middleware/auth.middleware.mjs`)
+
 - Verify JWT token
 - Extract user from token
 - Attach user to request
 
 #### 2. Role Middleware (`src/middleware/role.middleware.mjs`)
+
 - Check user roles
 - Protect role-specific routes
 
 #### 3. Validation Middleware (`src/middleware/validation.middleware.mjs`)
+
 - Request body validation
 - Parameter validation
 
@@ -303,6 +315,7 @@ MAX_SESSIONS_PER_USER=5
 ## API Response Format
 
 ### Success Response
+
 ```json
 {
   "success": true,
@@ -324,6 +337,7 @@ MAX_SESSIONS_PER_USER=5
 ```
 
 ### Error Response
+
 ```json
 {
   "success": false,
@@ -340,6 +354,7 @@ MAX_SESSIONS_PER_USER=5
 ## Implementation Priority
 
 ### Phase 1: Core Authentication (Week 1)
+
 1. Implement `Auth.utils.mjs` token and validation utilities
 2. Implement basic `signUp` and `login` in `Auth.service.mjs`
 3. Implement controllers for signup/login
@@ -347,6 +362,7 @@ MAX_SESSIONS_PER_USER=5
 5. Add JWT middleware
 
 ### Phase 2: OTP Verification (Week 1-2)
+
 1. Create OTP model
 2. Implement OTP generation/verification
 3. Add signup verification flow
@@ -354,12 +370,14 @@ MAX_SESSIONS_PER_USER=5
 5. Integrate SMS/Email service
 
 ### Phase 3: Session Management (Week 2)
+
 1. Create Session model
 2. Implement refresh token logic
 3. Add logout/logout-all functionality
 4. Add device tracking
 
 ### Phase 4: Advanced Security (Week 2-3)
+
 1. Add rate limiting
 2. Implement account lockout
 3. Add password reset flow
@@ -367,6 +385,7 @@ MAX_SESSIONS_PER_USER=5
 5. Security testing
 
 ### Phase 5: Admin Features (Week 3)
+
 1. Add block/unblock functionality
 2. Add auth analytics endpoints
 3. Add audit logging
@@ -385,12 +404,14 @@ pnpm add -D @types/jsonwebtoken @types/bcryptjs
 ## Testing Requirements
 
 ### Unit Tests
+
 - Auth utility functions
 - Service methods
 - OTP generation/verification
 - Token management
 
 ### Integration Tests
+
 - Complete signup flow
 - Complete login flow
 - Token refresh flow
@@ -398,6 +419,7 @@ pnpm add -D @types/jsonwebtoken @types/bcryptjs
 - Role-based route access
 
 ### Security Tests
+
 - SQL/NoSQL injection prevention
 - Brute force attack prevention
 - Token tampering
@@ -454,4 +476,3 @@ src/
 7. ✅ Add validation schemas
 8. ✅ Create OTP model
 9. ✅ Write tests for auth flow
-

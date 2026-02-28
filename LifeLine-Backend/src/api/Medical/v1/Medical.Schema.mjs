@@ -332,10 +332,7 @@ medicalSchema.methods.getAge = function () {
   const birthDate = new Date(this.dateOfBirth);
   let age = today.getFullYear() - birthDate.getFullYear();
   const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (
-    monthDiff < 0 ||
-    (monthDiff === 0 && today.getDate() < birthDate.getDate())
-  ) {
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
     age--;
   }
   return age;
@@ -369,9 +366,7 @@ medicalSchema.methods.calculateCompletion = function () {
   ];
 
   const completedFields = fields.filter(Boolean).length;
-  this.completionPercentage = Math.round(
-    (completedFields / fields.length) * 100,
-  );
+  this.completionPercentage = Math.round((completedFields / fields.length) * 100);
   this.isComplete = this.completionPercentage >= 70;
 
   return this.completionPercentage;

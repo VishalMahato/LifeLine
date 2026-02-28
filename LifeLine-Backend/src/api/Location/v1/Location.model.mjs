@@ -203,9 +203,7 @@ locationSchema.pre('save', async function () {
     const Helper = mongoose.model('Helper');
     const helperExists = await Helper.exists({ _id: this.helperId });
     if (!helperExists) {
-      throw new Error(
-        `Referential integrity error: Helper ${this.helperId} does not exist`,
-      );
+      throw new Error(`Referential integrity error: Helper ${this.helperId} does not exist`);
     }
   }
 });
@@ -244,11 +242,7 @@ locationSchema.methods.verify = function () {
 };
 
 // Static method to find locations near a point
-locationSchema.statics.findNearby = async function (
-  longitude,
-  latitude,
-  maxDistance = 5000,
-) {
+locationSchema.statics.findNearby = async function (longitude, latitude, maxDistance = 5000) {
   return this.find({
     coordinates: {
       $near: {
