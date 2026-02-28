@@ -10,6 +10,7 @@ import Dashboard from "./Dashboard";
 import SOSActiveAIScreen from "../(global)/SOSActiveAIScreen";
 
 import NearbyScreen from "./Nearby";
+import AccountDetails from "./Profile/AccountDetails";
 import Profile from "./Profile/Profile";
 
 const Tab = createBottomTabNavigator();
@@ -21,6 +22,11 @@ export const ProfileStack = () => {
       <Stack.Screen
         name="Profile"
         component={Profile}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="AccountDetails"
+        component={AccountDetails}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

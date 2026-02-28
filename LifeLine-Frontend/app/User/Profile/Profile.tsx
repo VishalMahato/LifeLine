@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
+import { useNavigation } from '@react-navigation/native'
 import { router } from 'expo-router'
 import React from 'react'
 import {
@@ -45,8 +46,14 @@ function ItemCard({ item }: ItemCardProps) {
 }
 
 export default function Profile() {
+  const navigation = useNavigation<any>()
+
   const personalInfoItems: ProfileItem[] = [
-    { icon: 'person', title: 'Account Details' },
+    {
+      icon: 'person',
+      title: 'Account Details',
+      onPress: () => navigation.navigate('AccountDetails'),
+    },
     { icon: 'location', title: 'Saved Addresses' },
   ]
 
