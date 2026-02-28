@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import cookieParser from 'cookie-parser';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connectDB, disconnectDB, getMongoStatus, isDBConnected } from './config/mongo.config.mjs';
@@ -28,6 +29,7 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 app.use('/uploads', express.static(path.join(runtimeDir, 'uploads')));
 
 // Health check endpoint

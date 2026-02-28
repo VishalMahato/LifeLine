@@ -26,4 +26,13 @@ describe('AuthUtils password hashing compatibility', () => {
     expect(AuthUtils.needsPasswordRehash(legacyHash)).toBe(true);
     expect(AuthUtils.needsPasswordRehash(argonHash)).toBe(false);
   });
+
+  test('extractTokenFromCookie reads token cookie when present', () => {
+    expect(AuthUtils.extractTokenFromCookie({ token: 'cookie-token' })).toBe('cookie-token');
+  });
+
+  test('extractTokenFromCookie returns null when token cookie is missing', () => {
+    expect(AuthUtils.extractTokenFromCookie({})).toBeNull();
+    expect(AuthUtils.extractTokenFromCookie(undefined)).toBeNull();
+  });
 });

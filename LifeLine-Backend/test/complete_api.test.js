@@ -51,10 +51,17 @@ describe('Complete API Validation Tests', () => {
     expect(response.body.success).toBe(false);
   });
 
-  test('POST /api/medical validates required fields', async () => {
+  test('POST /api/medical rejects unauthenticated requests', async () => {
     const response = await request(app).post('/api/medical').send({});
 
-    expect(response.statusCode).toBe(400);
+    expect(response.statusCode).toBe(401);
+    expect(response.body.success).toBe(false);
+  });
+
+  test('POST /api/medical/create rejects unauthenticated requests', async () => {
+    const response = await request(app).post('/api/medical/create').send({});
+
+    expect(response.statusCode).toBe(401);
     expect(response.body.success).toBe(false);
   });
 

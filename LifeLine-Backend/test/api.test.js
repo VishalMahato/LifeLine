@@ -28,6 +28,8 @@ describe('API Smoke Tests', () => {
     ['get', '/api/users/profile/me'],
     ['get', '/api/helpers/profile/me'],
     ['get', '/api/medical/profile/me'],
+    ['post', '/api/medical/create'],
+    ['post', '/api/medical/v1/create'],
     ['get', '/api/locations/user/me/locations'],
     ['get', '/api/locations/user/me/stats'],
     ['post', '/api/locations/current'],

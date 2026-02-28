@@ -17,7 +17,7 @@ export default class MedicalController {
         try {
             const medicalData = {
                 ...req.body,
-                userId: req.user?.userId || req.body.userId // From auth middleware or direct
+                userId: req.user.userId
             };
 
             const medicalInfo = await MedicalService.createMedicalInfo(medicalData);
