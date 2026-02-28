@@ -1,96 +1,144 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React from 'react'
+import { View, Text, StyleSheet } from 'react-native'
+import {
+  widthPercentageToDP as wp,
+  heightPercentageToDP as hp,
+} from 'react-native-responsive-screen'
+import Ionicons from '@expo/vector-icons/Ionicons'
 
 const features = [
   {
-    icon: 'flash-outline' as const,
+    icon: 'flash',
     title: 'One-Tap SOS',
-    description: 'Trigger emergency alerts instantly without friction.',
+    desc: 'Instant activation without unlocking.',
   },
   {
-    icon: 'navigate-outline' as const,
+    icon: 'navigate',
     title: 'Live Tracking',
-    description: 'Share real-time location updates with helpers and family.',
+    desc: 'Real-time location sharing.',
   },
   {
-    icon: 'medkit-outline' as const,
+    icon: 'medical',
     title: 'Medical ID',
-    description: 'Send critical medical information automatically.',
+    desc: 'Share vital info automatically.',
   },
   {
-    icon: 'shield-checkmark-outline' as const,
+    icon: 'shield-checkmark',
     title: 'Vetted Helpers',
-    description: 'Trained and verified responders only.',
+    desc: 'Background checked professionals.',
   },
-];
+]
 
-export default function CoreFeaturesSection() {
+const CoreFeaturesSection = () => {
+  const isLargeScreen = wp("100%") >= 768;
+  const isExtraLargeScreen = wp("100%") >= 1024;
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Core Features</Text>
+      {/* Title */}
+      <Text style={[styles.title, isLargeScreen && styles.titleLarge]}>Core Features</Text>
 
-      <View style={styles.grid}>
-        {features.map((feature) => (
-          <View key={feature.title} style={styles.card}>
+      {/* Grid */}
+      <View style={[styles.grid, isExtraLargeScreen && styles.gridExtraLarge]}>
+        {features.map((item, index) => (
+          <View key={index} style={[styles.card, isLargeScreen && styles.cardLarge]}>
             <View style={styles.iconBox}>
-              <Ionicons name={feature.icon} size={24} color="#2563EB" />
+              <Ionicons
+                name={item.icon as any}
+                size={isLargeScreen ? hp('3%') : hp('2.6%')}
+                color="#2F80ED"
+              />
             </View>
 
-            <Text style={styles.cardTitle}>{feature.title}</Text>
-            <Text style={styles.cardDescription}>{feature.description}</Text>
+            <Text style={[styles.cardTitle, isLargeScreen && styles.cardTitleLarge]}>{item.title}</Text>
+            <Text style={[styles.cardDesc, isLargeScreen && styles.cardDescLarge]}>{item.desc}</Text>
           </View>
         ))}
       </View>
     </View>
-  );
+  )
 }
+
+export default CoreFeaturesSection
+
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 24,
-    paddingVertical: 42,
-    marginTop: 28,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: wp('6%'),
+    paddingVertical: hp('5%'),
+    marginTop: hp('8%'),
+    backgroundColor: '#fff',
   },
+
   title: {
-    fontSize: 30,
+    fontSize: hp('2.8%'),
     fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 24,
+    color: '#0A2540',
+    marginBottom: hp('3%'),
   },
+
+  titleLarge: {
+    fontSize: hp('3.5%'),
+  },
+
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: 16,
+    rowGap: hp('3%'),
   },
+
+  gridExtraLarge: {
+    justifyContent: 'center',
+    gap: wp('2%'),
+  },
+
   card: {
-    width: '48.5%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderColor: '#E2E8F0',
-    borderWidth: 1,
+    width: '47%',
+    backgroundColor: '#fff',
+    borderRadius: hp('2%'),
+    padding: wp('5%'),
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
   },
+
+  cardLarge: {
+    width: '22%',
+    padding: wp('6%'),
+    borderRadius: hp('2.5%'),
+  },
+
   iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#DBEAFE',
+    width: hp('5%'),
+    height: hp('5%'),
+    borderRadius: hp('1.5%'),
+    backgroundColor: '#EAF4FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: hp('1.8%'),
   },
+
   cardTitle: {
-    fontSize: 17,
+    fontSize: hp('1.9%'),
     fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 6,
+    color: '#0A2540',
+    marginBottom: hp('0.6%'),
   },
-  cardDescription: {
-    fontSize: 14,
-    color: '#475569',
-    lineHeight: 20,
+
+  cardTitleLarge: {
+    fontSize: hp('2.2%'),
   },
-});
+
+  cardDesc: {
+    fontSize: hp('1.6%'),
+    color: '#5F6C7B',
+    lineHeight: hp('2.3%'),
+  },
+
+  cardDescLarge: {
+    fontSize: hp('1.8%'),
+    lineHeight: hp('2.5%'),
+  },
+})
