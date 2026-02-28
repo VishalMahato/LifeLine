@@ -16,7 +16,7 @@ import SecureLocationScreen from "@/src/features/auth/screens/SecureLocationScre
 import { createUserAuth } from "@/src/features/auth/authSlice";
 import { useAppDispatch, useAppSelector } from "@/src/core/store";
 
-const steps = [
+const userSignUpSteps = [
   {
     id: 1,
     Element: <UserInfo />,
@@ -27,34 +27,51 @@ const steps = [
   },
   {
     id: 3,
-    Element: <VerifySkillsScreen />,
-  },
-  {
-    id: 4,
     Element: <MedicalInfoScreen />,
   },
   {
-    id: 5,
+    id: 4,
+    Element: <SecureLocationScreen />,
+  },
+];
+
+const helperSignUpSteps = [
+  {
+    id: 1,
+    Element: <UserInfo />,
+  },
+  {
+    id: 2,
+    Element: <VerifySkillsScreen />,
+  },
+  {
+    id: 3,
     Element: <SecureLocationScreen />,
   },
 ];
 
 const SignUp = () => {
   const dispatch = useAppDispatch();
-  const isLoading = useAppSelector((state) => state.auth.isLoading);
+  const { isLoading, userData } = useAppSelector((state) => state.auth);
+  const [currentRole, setCurrentRole] = React.useState<
+    "user" | "helper" | null
+  >(userData?.role || null);
   const [currentStep, setCurrentStep] = React.useState(0);
   const userInfoRef = useRef<UserInfoHandle>(null);
-  const isLastStep = currentStep === steps.length - 1;
+  const currentSteps =
+    currentRole === "helper" ? helperSignUpSteps : userSignUpSteps;
+  const isLastStep = currentStep === currentSteps.length - 1;
 
   const goToNextStep = () => {
     setCurrentStep((prevStep) => prevStep + 1);
   };
 
   const handleUserInfoSubmit = async (payload: UserInfoSubmitPayload) => {
+    setCurrentRole(payload.userData.role);
     if (!payload.emailExists) {
       await dispatch(createUserAuth(payload.formData)).unwrap();
     }
-    goToNextStep();
+    setCurrentStep(1);
   };
 
   const handleNext = async () => {
@@ -87,7 +104,7 @@ const SignUp = () => {
       {currentStep === 0 ? (
         <UserInfo ref={userInfoRef} onSubmit={handleUserInfoSubmit} />
       ) : (
-        steps[currentStep].Element
+        currentSteps[currentStep].Element
       )}
 
       <View style={[styles.footer, isLastStep && styles.footerLastStep]}>

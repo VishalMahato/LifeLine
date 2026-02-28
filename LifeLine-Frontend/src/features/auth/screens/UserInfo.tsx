@@ -55,7 +55,9 @@ type UserInfoProps = {
 const UserInfo = forwardRef<UserInfoHandle, UserInfoProps>(
   ({ onSubmit }, ref) => {
     const dispatch = useAppDispatch();
-    const { emailExists, error } = useAppSelector((state) => state.auth);
+    const { emailExists, error, userData } = useAppSelector(
+      (state) => state.auth,
+    );
     const [role, setRole] = useState<"user" | "helper">("user");
     const [image, setImage] = useState<string | null>(null);
     const [fullName, setFullName] = useState("");
@@ -70,6 +72,17 @@ const UserInfo = forwardRef<UserInfoHandle, UserInfoProps>(
         dispatch(clearError());
       };
     }, [dispatch]);
+
+    useEffect(() => {
+      if (emailExists && userData) {
+        setFullName(userData.fullName || "");
+        setMobileNumber(userData.mobileNumber || "");
+        setRole(userData.role || "user");
+        if (userData.profileImage) {
+          setImage(userData.profileImage);
+        }
+      }
+    }, [emailExists, userData]);
 
     const handleImagePick = async () => {
       try {
