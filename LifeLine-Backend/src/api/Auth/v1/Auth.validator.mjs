@@ -115,6 +115,31 @@ class AuthValidator {
     ];
 
     /**
+     * Validate change password payload
+     */
+    static validateChangePassword = [
+        body('currentPassword')
+            .notEmpty()
+            .withMessage('Current password is required'),
+
+        body('newPassword')
+            .isLength({ min: AuthConstants.PASSWORD.MIN_LENGTH })
+            .withMessage(AuthConstants.MESSAGES.VALIDATION.PASSWORD_TOO_SHORT)
+            .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+            .withMessage(AuthConstants.MESSAGES.VALIDATION.PASSWORD_TOO_WEAK),
+
+        body('confirmPassword')
+            .custom((value, { req }) => {
+                if (value !== req.body.newPassword) {
+                    throw new Error('Passwords do not match');
+                }
+                return true;
+            }),
+
+        this.handleValidationErrors
+    ];
+
+    /**
      * Validate email verification
      */
     static validateEmailVerification = [

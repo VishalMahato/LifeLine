@@ -1,8 +1,7 @@
 import express from 'express';
 import UserController from './User.controller.mjs';
 import UserConstants from './User.constants.mjs';
-// Import auth middleware when available
-// import { authenticate, authorize } from '../Auth/Auth.middleware.mjs';
+import AuthMiddleware from '../Auth/v1/Auth.middleware.mjs';
 
 const router = express.Router();
 
@@ -19,16 +18,16 @@ router.post('/',
     UserController.createUser
 );
 
-// Get user by ID
-router.get('/:id',
-    // authenticate, // Uncomment when auth middleware is available
-    UserController.getUser
-);
-
 // Get current user's profile
 router.get('/profile/me',
-    // authenticate, // Uncomment when auth middleware is available
+    AuthMiddleware.authenticate,
     UserController.getMyProfile
+);
+
+// Get user by ID
+router.get('/:id',
+    // AuthMiddleware.authenticate,
+    UserController.getUser
 );
 
 // Update user profile

@@ -1,8 +1,7 @@
 import express from 'express';
 import LocationController from './Location.controller.mjs';
 import LocationConstants from './Location.constants.mjs';
-// Import auth middleware when available
-// import { authenticate, authorize } from '../Auth/Auth.middleware.mjs';
+import AuthMiddleware from '../Auth/v1/Auth.middleware.mjs';
 
 const router = express.Router();
 
@@ -33,7 +32,7 @@ router.get('/user/:userId',
 
 // Get current user's locations
 router.get('/user/me/locations',
-    // authenticate, // Uncomment when auth middleware is available
+    AuthMiddleware.authenticate,
     LocationController.getUserLocations
 );
 
@@ -45,7 +44,7 @@ router.put('/:id',
 
 // Update current location
 router.post('/current',
-    // authenticate, // Uncomment when auth middleware is available
+    AuthMiddleware.authenticate,
     LocationController.updateCurrentLocation
 );
 
@@ -69,7 +68,7 @@ router.get('/user/:userId/stats',
 
 // Get current user's location statistics
 router.get('/user/me/stats',
-    // authenticate, // Uncomment when auth middleware is available
+    AuthMiddleware.authenticate,
     LocationController.getLocationStats
 );
 

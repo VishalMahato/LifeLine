@@ -17,7 +17,7 @@ export default class LocationController {
         try {
             const locationData = {
                 ...req.body,
-                userId: req.user?.id || req.body.userId // From auth middleware or direct
+                userId: req.user?.userId || req.body.userId // From auth middleware or direct
             };
 
             const location = await LocationService.createLocation(locationData);
@@ -64,7 +64,7 @@ export default class LocationController {
      */
     static async getUserLocations(req, res) {
         try {
-            const userId = req.user?.id || req.params.userId;
+            const userId = req.user?.userId || req.params.userId;
             const locations = await LocationService.getLocationsByUserId(userId);
 
             res.status(200).json({
@@ -111,7 +111,7 @@ export default class LocationController {
      */
     static async updateCurrentLocation(req, res) {
         try {
-            const userId = req.user.id;
+            const userId = req.user.userId;
             const { coordinates, accuracy } = req.body;
 
             const location = await LocationService.updateCurrentLocation(userId, { coordinates, accuracy });
@@ -238,7 +238,7 @@ export default class LocationController {
      */
     static async getLocationStats(req, res) {
         try {
-            const userId = req.user?.id || req.params.userId;
+            const userId = req.user?.userId || req.params.userId;
             const stats = await LocationService.getLocationStats(userId);
 
             res.status(200).json({

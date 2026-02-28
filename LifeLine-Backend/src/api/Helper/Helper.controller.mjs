@@ -17,7 +17,7 @@ export default class HelperController {
         try {
             const helperData = {
                 ...req.body,
-                authId: req.user?.id || req.body.authId // From auth middleware or direct
+                authId: req.user?.userId || req.body.authId // From auth middleware or direct
             };
 
             const helper = await HelperService.createHelper(helperData);
@@ -64,7 +64,7 @@ export default class HelperController {
      */
     static async getMyProfile(req, res) {
         try {
-            const authId = req.user.id;
+            const authId = req.user.userId;
             const helper = await HelperService.getHelperByAuthId(authId);
 
             res.status(200).json({

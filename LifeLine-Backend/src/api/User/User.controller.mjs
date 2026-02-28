@@ -17,7 +17,7 @@ export default class UserController {
         try {
             const userData = {
                 ...req.body,
-                authId: req.user?.id || req.body.authId // From auth middleware or direct
+                authId: req.user?.userId || req.body.authId // From auth middleware or direct
             };
 
             const user = await UserService.createUser(userData);
@@ -64,7 +64,7 @@ export default class UserController {
      */
     static async getMyProfile(req, res) {
         try {
-            const authId = req.user.id;
+            const authId = req.user.userId;
             const user = await UserService.getUserByAuthId(authId);
 
             res.status(200).json({

@@ -1,8 +1,7 @@
 import express from 'express';
 import HelperController from './Helper.controller.mjs';
 import HelperConstants from './Helper.constants.mjs';
-// Import auth middleware when available
-// import { authenticate, authorize } from '../Auth/Auth.middleware.mjs';
+import AuthMiddleware from '../Auth/v1/Auth.middleware.mjs';
 
 const router = express.Router();
 
@@ -19,16 +18,16 @@ router.post('/',
     HelperController.createHelper
 );
 
-// Get helper by ID
-router.get('/:id',
-    // authenticate, // Uncomment when auth middleware is available
-    HelperController.getHelper
-);
-
 // Get current user's helper profile
 router.get('/profile/me',
-    // authenticate, // Uncomment when auth middleware is available
+    AuthMiddleware.authenticate,
     HelperController.getMyProfile
+);
+
+// Get helper by ID
+router.get('/:id',
+    // AuthMiddleware.authenticate,
+    HelperController.getHelper
 );
 
 // Update helper profile

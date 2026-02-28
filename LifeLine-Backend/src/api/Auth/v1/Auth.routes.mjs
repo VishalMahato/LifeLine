@@ -2,6 +2,7 @@ import express from 'express';
 import AuthController from './Auth.controller.mjs';
 import AuthValidator from './Auth.validator.mjs';
 import AuthConstants from './Auth.constants.mjs';
+import AuthMiddleware from './Auth.middleware.mjs';
 import rateLimit from 'express-rate-limit';
 
 /**
@@ -207,31 +208,36 @@ class AuthRoutes {
         // Change password
         this.router.post(
             '/change-password',
-            AuthValidator.validatePasswordReset, // Reuse validation
+            AuthMiddleware.authenticate,
+            AuthValidator.validateChangePassword,
             AuthController.changePassword
         );
 
         // Get profile
         this.router.get(
             '/profile',
+            AuthMiddleware.authenticate,
             AuthController.getProfile
         );
 
         // Update profile
         this.router.patch(
             '/profile',
+            AuthMiddleware.authenticate,
             AuthController.updateProfile
         );
 
         // Delete account
         this.router.delete(
             '/account',
+            AuthMiddleware.authenticate,
             AuthController.deleteAccount
         );
 
         // Logout
         this.router.post(
             '/logout',
+            AuthMiddleware.authenticate,
             AuthController.logout
         );
     }

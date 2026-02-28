@@ -1,8 +1,7 @@
 import express from 'express';
 import MedicalController from './Medical.controller.mjs';
 import MedicalConstants from './Medical.constants.mjs';
-// Import auth middleware when available
-// import { authenticate, authorize } from '../Auth/Auth.middleware.mjs';
+import AuthMiddleware from '../Auth/v1/Auth.middleware.mjs';
 
 const router = express.Router();
 
@@ -19,16 +18,16 @@ router.post('/',
     MedicalController.createMedicalInfo
 );
 
-// Get medical information by ID
-router.get('/:id',
-    // authenticate, // Uncomment when auth middleware is available
-    MedicalController.getMedicalInfo
-);
-
 // Get current user's medical information
 router.get('/profile/me',
-    // authenticate, // Uncomment when auth middleware is available
+    AuthMiddleware.authenticate,
     MedicalController.getMyMedicalInfo
+);
+
+// Get medical information by ID
+router.get('/:id',
+    // AuthMiddleware.authenticate,
+    MedicalController.getMedicalInfo
 );
 
 // Update medical information
