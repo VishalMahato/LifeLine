@@ -1,12 +1,14 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import React from 'react'
-import { router } from 'expo-router'
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen'
 import UserInfo from '@/src/features/auth/screens/UserInfo'
 import EmergencyContactsScreen from '@/src/features/auth/screens/EmergencyContacts'
+import VerifySkillsScreen from '@/src/features/auth/screens/VerifySkillsScreen'
+import MedicalInfoScreen from '@/src/features/auth/screens/MedicalInfoScreen'
+import SecureLocationScreen from '@/src/features/auth/screens/SecureLocationScreen'
 
 const steps = [
   {
@@ -17,6 +19,18 @@ const steps = [
     id: 2,
     Element: <EmergencyContactsScreen />,
   },
+  {
+    id: 3,
+    Element: <VerifySkillsScreen />,
+  },
+  {
+    id: 4,
+    Element: <MedicalInfoScreen />,
+  },
+  {
+    id: 5,
+    Element: <SecureLocationScreen />,
+  },
 ]
 
 const SignUp = () => {
@@ -24,12 +38,8 @@ const SignUp = () => {
   const isLastStep = currentStep === steps.length - 1
 
   const handleNext = () => {
-    if (!isLastStep) {
-      setCurrentStep((prevStep) => prevStep + 1)
-      return
-    }
-
-    router.replace('/Home')
+    if (isLastStep) return
+    setCurrentStep((prevStep) => prevStep + 1)
   }
 
   const handleBack = () => {
@@ -42,18 +52,21 @@ const SignUp = () => {
     <View style={{ flex: 1 }}>
       {steps[currentStep].Element}
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, isLastStep && styles.footerLastStep]}>
         {currentStep > 0 && (
           <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
-          <Text style={styles.nextText}>
-            {isLastStep ? 'Finish' : 'Next Step →'}
-          </Text>
-        </TouchableOpacity>
+        {!isLastStep && (
+          <TouchableOpacity
+            style={[styles.nextBtn, currentStep === 0 && styles.nextBtnFull]}
+            onPress={handleNext}
+          >
+            <Text style={styles.nextText}>Next Step →</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   )
@@ -169,13 +182,19 @@ const styles = StyleSheet.create({
   },
 
   footer: {
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#fff',
     width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
-
+    paddingHorizontal: wp('6%'),
+    paddingVertical: hp('2%'),
     marginBottom: hp('4%'),
   },
+
+  footerLastStep: {
+    justifyContent: 'flex-start',
+  },
+    
 
   backBtn: {
     width: '30%',
@@ -197,6 +216,10 @@ const styles = StyleSheet.create({
     borderRadius: hp('1.2%'),
     alignItems: 'center',
     paddingVertical: hp('1.6%'),
+  },
+
+  nextBtnFull: {
+    width: '100%',
   },
 
   nextText: {

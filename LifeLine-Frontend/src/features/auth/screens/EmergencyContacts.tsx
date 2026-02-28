@@ -59,7 +59,7 @@ const EmergencyContactsScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <Ionicons name="arrow-back" size={hp('2.5%')} />
-        <Text style={styles.step}>STEP 2 OF 4</Text>
+        <Text style={styles.step}>STEP 2 OF 5</Text>
       </View>
 
       <Text style={styles.title}>Emergency Contacts</Text>
