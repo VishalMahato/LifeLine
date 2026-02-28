@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Image,
+  Linking,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -16,6 +18,9 @@ import {
   heightPercentageToDP as hp,
   widthPercentageToDP as wp,
 } from 'react-native-responsive-screen';
+
+type UserRole = 'helper' | 'user';
+type RideType = 'driving' | 'cycling' | 'walking';
 
 type Coords = {
   latitude: number;
@@ -44,7 +49,13 @@ type WebMapMessage =
 const defaultUserLocation: Coords = { latitude: 28.6139, longitude: 77.209 };
 const defaultHelperLocation: Coords = { latitude: 28.621, longitude: 77.217 };
 
-const buildMapHtml = (helperLocation: Coords, userLocation: Coords) => {
+const toTravelMode = (type: RideType) => {
+  if (type === 'cycling') return 'bicycling';
+  if (type === 'walking') return 'walking';
+  return 'driving';
+};
+
+const buildMapHtml = (helperLocation: Coords, userLocation: Coords, rideType: RideType) => {
   const centerLat = (helperLocation.latitude + userLocation.latitude) / 2;
   const centerLng = (helperLocation.longitude + userLocation.longitude) / 2;
 
@@ -57,54 +68,106 @@ const buildMapHtml = (helperLocation: Coords, userLocation: Coords) => {
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
   <style>
-    html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; }
+    html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; background: #eef2f7; }
+
+    .marker-pin {
+      width: 35px;
+      height: 36px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+      border: 3px solid #ffffff;
+    }
+
+    .marker-pin span {
+      transform: rotate(45deg);
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .helper-marker { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
+    .user-marker { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); }
+
     .leaflet-routing-container { display: none !important; }
+    .leaflet-control-zoom { display: none !important; }
     .leaflet-control-attribution { font-size: 8px !important; }
   </style>
 </head>
 <body>
   <div id="map"></div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"><\/script>
   <script>
-    const map = L.map('map', { zoomControl: false }).setView([${centerLat}, ${centerLng}], 14);
+    const map = L.map('map', { zoomControl: false, maxZoom: 19, minZoom: 3 }).setView([${centerLat}, ${centerLng}], 14);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors',
     }).addTo(map);
 
-    const helperMarker = L.marker([${helperLocation.latitude}, ${helperLocation.longitude}]).addTo(map);
-    const userMarker = L.marker([${userLocation.latitude}, ${userLocation.longitude}]).addTo(map);
+    const createMarkerIcon = (type) =>
+      L.divIcon({
+        className: '',
+        html:
+          '<div class="marker-pin ' +
+          (type === 'helper' ? 'helper-marker' : 'user-marker') +
+          '"><span>' +
+          (type === 'helper' ? '🚑' : '📍') +
+          '</span></div>',
+        iconSize: [35, 36],
+        iconAnchor: [17.5, 36],
+      });
+
+    const helperMarker = L.marker([${helperLocation.latitude}, ${helperLocation.longitude}], {
+      icon: createMarkerIcon('helper'),
+    }).addTo(map);
+
+    const userMarker = L.marker([${userLocation.latitude}, ${userLocation.longitude}], {
+      icon: createMarkerIcon('user'),
+    }).addTo(map);
+
+    const profileMap = {
+      driving: 'driving',
+      cycling: 'cycling',
+      walking: 'walking',
+    };
+
+    const rideProfile = profileMap['${rideType}'] || 'driving';
 
     const routingControl = L.Routing.control({
-      waypoints: [
-        L.latLng(${helperLocation.latitude}, ${helperLocation.longitude}),
-        L.latLng(${userLocation.latitude}, ${userLocation.longitude})
-      ],
+      waypoints: [helperMarker.getLatLng(), userMarker.getLatLng()],
       routeWhileDragging: false,
       addWaypoints: false,
       draggableWaypoints: false,
+      fitSelectedRoutes: false,
       lineOptions: {
-        styles: [{ color: '#2F80ED', weight: 5, opacity: 0.85 }],
+        styles: [{ color: '#2563eb', weight: 6, opacity: 0.9 }],
       },
-      createMarker: function () { return null; }
+      createMarker: () => null,
+      router: L.Routing.osrmv1({
+        serviceUrl: 'https://router.project-osrm.org/route/v1/' + rideProfile,
+      }),
     }).addTo(map);
 
-    routingControl.on('routesfound', function (e) {
-      const route = e.routes[0];
-      window.ReactNativeWebView.postMessage(JSON.stringify({
-        type: 'routeInfo',
-        distance: (route.summary.totalDistance / 1000).toFixed(1) + ' km',
-        duration: Math.ceil(route.summary.totalTime / 60) + ' min'
-      }));
+    routingControl.on('routesfound', function (event) {
+      const route = event.routes[0];
+      const distanceKm = route.summary.totalDistance / 1000;
+      const durationMin = Math.ceil(route.summary.totalTime / 60);
+
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({
+          type: 'routeInfo',
+          distance: distanceKm.toFixed(distanceKm >= 10 ? 1 : 2) + ' km',
+          duration: durationMin + ' min',
+        }),
+      );
     });
 
-    map.fitBounds([
-      [${helperLocation.latitude}, ${helperLocation.longitude}],
-      [${userLocation.latitude}, ${userLocation.longitude}],
-    ], { padding: [44, 44] });
-
+    map.fitBounds([helperMarker.getLatLng(), userMarker.getLatLng()], { padding: [44, 44] });
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mapReady' }));
 
     const handleMessage = function (event) {
@@ -118,17 +181,14 @@ const buildMapHtml = (helperLocation: Coords, userLocation: Coords) => {
 
           if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
             userMarker.setLatLng([lat, lng]);
-            routingControl.setWaypoints([
-              L.latLng(${helperLocation.latitude}, ${helperLocation.longitude}),
-              L.latLng(lat, lng),
-            ]);
+            routingControl.setWaypoints([helperMarker.getLatLng(), userMarker.getLatLng()]);
           }
         }
 
         if (payload.type === 'centerMap') {
           map.fitBounds([helperMarker.getLatLng(), userMarker.getLatLng()], { padding: [44, 44] });
         }
-      } catch (error) {
+      } catch {
         // Ignore malformed messages
       }
     };
@@ -143,19 +203,24 @@ const buildMapHtml = (helperLocation: Coords, userLocation: Coords) => {
 const MapScreen = () => {
   const router = useRouter();
   const webViewRef = useRef<WebView | null>(null);
-  const { helperId, userId } = useLocalSearchParams<{
+  const { helperId, userId, role } = useLocalSearchParams<{
     helperId?: string | string[];
     userId?: string | string[];
+    role?: string | string[];
   }>();
 
   const helperIdParam = useMemo(() => (Array.isArray(helperId) ? helperId[0] : helperId), [helperId]);
   const userIdParam = useMemo(() => (Array.isArray(userId) ? userId[0] : userId), [userId]);
+  const roleParam = useMemo(() => (Array.isArray(role) ? role[0] : role), [role]);
+  const myRole: UserRole = roleParam === 'helper' ? 'helper' : 'user';
 
   const [isLoading, setIsLoading] = useState(true);
   const [isMapReady, setIsMapReady] = useState(false);
-  const [mapHtml, setMapHtml] = useState('');
   const [distance, setDistance] = useState('--');
   const [eta, setEta] = useState('--');
+  const [rideType, setRideType] = useState<RideType>('driving');
+  const [userLocation, setUserLocation] = useState<Coords>(defaultUserLocation);
+  const [helperLocation, setHelperLocation] = useState<Coords>(defaultHelperLocation);
 
   const helperData = useMemo<HelperData>(
     () => ({
@@ -167,6 +232,11 @@ const MapScreen = () => {
       rescues: 1247,
     }),
     [helperIdParam],
+  );
+
+  const mapHtml = useMemo(
+    () => buildMapHtml(helperLocation, userLocation, rideType),
+    [helperLocation, userLocation, rideType],
   );
 
   useEffect(() => {
@@ -188,18 +258,19 @@ const MapScreen = () => {
           };
         }
 
-        // Mock helper location near user until live helper coordinates are available.
         const initialHelperLocation = {
           latitude: initialUserLocation.latitude + 0.007,
           longitude: initialUserLocation.longitude + 0.007,
         };
 
         if (!isCancelled) {
-          setMapHtml(buildMapHtml(initialHelperLocation, initialUserLocation));
+          setUserLocation(initialUserLocation);
+          setHelperLocation(initialHelperLocation);
         }
       } catch {
         if (!isCancelled) {
-          setMapHtml(buildMapHtml(defaultHelperLocation, defaultUserLocation));
+          setUserLocation(defaultUserLocation);
+          setHelperLocation(defaultHelperLocation);
         }
       } finally {
         if (!isCancelled) {
@@ -235,6 +306,8 @@ const MapScreen = () => {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
           };
+
+          setUserLocation(current);
 
           if (isMapReady) {
             webViewRef.current?.postMessage(
@@ -278,7 +351,35 @@ const MapScreen = () => {
     webViewRef.current?.postMessage(JSON.stringify({ type: 'centerMap' }));
   };
 
-  if (isLoading || !mapHtml) {
+  const handleRideTypePress = (type: RideType) => {
+    if (type === rideType) {
+      return;
+    }
+
+    setIsMapReady(false);
+    setRideType(type);
+  };
+
+  const openExternalNavigation = async () => {
+    const destination = myRole === 'helper' ? userLocation : helperLocation;
+    const origin = myRole === 'helper' ? helperLocation : userLocation;
+
+    const googleUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&travelmode=${toTravelMode(rideType)}`;
+    const appleUrl = `http://maps.apple.com/?saddr=${origin.latitude},${origin.longitude}&daddr=${destination.latitude},${destination.longitude}&dirflg=${rideType === 'walking' ? 'w' : 'd'}`;
+
+    try {
+      if (Platform.OS === 'ios') {
+        await Linking.openURL(appleUrl);
+        return;
+      }
+
+      await Linking.openURL(googleUrl);
+    } catch {
+      await Linking.openURL(googleUrl);
+    }
+  };
+
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#2F80ED" />
@@ -340,9 +441,44 @@ const MapScreen = () => {
                 </View>
               </View>
               <View style={styles.statusBadge}>
-                <Text style={styles.statusLabel}>On the way</Text>
+                <Text style={styles.statusLabel}>
+                  {myRole === 'helper' ? 'Navigate to user' : 'Helper arriving'}
+                </Text>
                 <Text style={styles.statusValue}>{eta}</Text>
               </View>
+            </View>
+
+            <View style={styles.modeRow}>
+              <TouchableOpacity
+                style={[styles.modeButton, rideType === 'driving' && styles.modeButtonActive]}
+                onPress={() => handleRideTypePress('driving')}
+              >
+                <Ionicons
+                  name="car-outline"
+                  size={16}
+                  color={rideType === 'driving' ? '#FFFFFF' : '#0A2540'}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modeButton, rideType === 'cycling' && styles.modeButtonActive]}
+                onPress={() => handleRideTypePress('cycling')}
+              >
+                <Ionicons
+                  name="bicycle-outline"
+                  size={16}
+                  color={rideType === 'cycling' ? '#FFFFFF' : '#0A2540'}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modeButton, rideType === 'walking' && styles.modeButtonActive]}
+                onPress={() => handleRideTypePress('walking')}
+              >
+                <Ionicons
+                  name="walk-outline"
+                  size={16}
+                  color={rideType === 'walking' ? '#FFFFFF' : '#0A2540'}
+                />
+              </TouchableOpacity>
             </View>
 
             <View style={styles.actionsRow}>
@@ -354,8 +490,15 @@ const MapScreen = () => {
               </TouchableOpacity>
             </View>
 
+            <TouchableOpacity style={styles.navigateButton} onPress={openExternalNavigation}>
+              <Ionicons name="navigate" size={16} color="#FFFFFF" />
+              <Text style={styles.navigateText}>Open navigation</Text>
+            </TouchableOpacity>
+
             <Text style={styles.noteText}>
-              Live location updates active for helper {helperData.id} and user {userIdParam || 'current-user'}.
+              {myRole === 'helper'
+                ? `Live location updates active for your route to user ${userIdParam || 'current-user'}.`
+                : `Live location updates active for helper ${helperData.id} and user ${userIdParam || 'current-user'}.`}
             </Text>
           </View>
         </View>
@@ -491,6 +634,21 @@ const styles = StyleSheet.create({
     fontSize: hp('1.6%'),
     fontWeight: '800',
   },
+  modeRow: {
+    flexDirection: 'row',
+    gap: wp('2%'),
+  },
+  modeButton: {
+    width: hp('4.2%'),
+    height: hp('4.2%'),
+    borderRadius: hp('1%'),
+    backgroundColor: '#EEF3F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeButtonActive: {
+    backgroundColor: '#0B5ED7',
+  },
   actionsRow: {
     flexDirection: 'row',
     gap: wp('3%'),
@@ -516,6 +674,20 @@ const styles = StyleSheet.create({
   secondaryActionText: {
     color: '#0A2540',
     fontSize: hp('1.65%'),
+    fontWeight: '700',
+  },
+  navigateButton: {
+    borderRadius: hp('1.2%'),
+    backgroundColor: '#0B5ED7',
+    paddingVertical: hp('1.35%'),
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: wp('1.8%'),
+  },
+  navigateText: {
+    color: '#FFFFFF',
+    fontSize: hp('1.6%'),
     fontWeight: '700',
   },
   noteText: {

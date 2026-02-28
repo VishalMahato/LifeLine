@@ -12,6 +12,7 @@ import AuthConstants from './Auth.constants.mjs';
  */
 class AuthUtils {
     static BCRYPT_HASH_REGEX = /^\$2[aby]\$/;
+    static DB_UNAVAILABLE_ERROR_REGEX = /(database is unavailable|buffering timed out)/i;
 
     /**
      * Hash a password using argon2id
@@ -329,7 +330,17 @@ class AuthUtils {
      * @returns {Object} Error response
      */
     static createErrorResponse(message, data = null, statusCode = AuthConstants.HTTP_STATUS.BAD_REQUEST) {
-        return this.createResponse(false, message, data, statusCode);
+        let resolvedStatusCode = statusCode;
+
+        if (
+            statusCode === AuthConstants.HTTP_STATUS.BAD_REQUEST
+            && typeof message === 'string'
+            && this.DB_UNAVAILABLE_ERROR_REGEX.test(message)
+        ) {
+            resolvedStatusCode = AuthConstants.HTTP_STATUS.SERVICE_UNAVAILABLE;
+        }
+
+        return this.createResponse(false, message, data, resolvedStatusCode);
     }
 }
 
