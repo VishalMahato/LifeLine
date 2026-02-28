@@ -29,6 +29,19 @@ interface CreateUserAuthResult {
   };
 }
 
+interface LoginResult {
+  user?: {
+    name?: string;
+    email?: string;
+    phoneNumber?: string;
+    role?: "user" | "helper";
+    profileImage?: string;
+    _id?: string;
+  };
+  accessToken?: string;
+  refreshToken?: string;
+}
+
 export interface AuthState {
   userData: UserData | null;
   emailExists: boolean;
@@ -95,6 +108,25 @@ export const createUserAuth = createAsyncThunk<
   }
 });
 
+export const loginUser = createAsyncThunk<
+  LoginResult,
+  { email: string; password: string },
+  { rejectValue: string }
+>("auth/loginUser", async (credentials, { rejectWithValue }) => {
+  try {
+    const response = await axios.post<{ data: LoginResult }>(
+      `${getApiBaseUrl()}/login`,
+      credentials,
+      {
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    return response.data.data;
+  } catch (error) {
+    return rejectWithValue(errorMessage(error, "Failed to login"));
+  }
+});
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -154,6 +186,29 @@ const authSlice = createSlice({
       .addCase(createUserAuth.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload || "Failed to create user auth record";
+      })
+      .addCase(loginUser.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(loginUser.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const user = action.payload.user;
+        if (user) {
+          state.userData = {
+            fullName: user.name || "",
+            email: user.email || "",
+            mobileNumber: user.phoneNumber || "",
+            role: user.role || "user",
+            profileImage: user.profileImage,
+          };
+          state.emailExists = true;
+          state.authId = user._id || state.authId;
+        }
+      })
+      .addCase(loginUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || "Failed to login";
       });
   },
 });

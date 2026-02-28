@@ -1,25 +1,58 @@
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import {
-    heightPercentageToDP as hp,
-    widthPercentageToDP as wp,
+  heightPercentageToDP as hp,
+  widthPercentageToDP as wp,
 } from "react-native-responsive-screen";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useAppDispatch, useAppSelector } from "@/src/core/store";
+import { clearError, loginUser } from "@/src/features/auth/authSlice";
 
 const LoginScreen = () => {
+  const dispatch = useAppDispatch();
+  const router = useRouter();
+  const { isLoading, error } = useAppSelector((state) => state.auth);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = () => {
-    console.log({ email, password });
+  const handleLogin = async () => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !password.trim()) {
+      Alert.alert("Missing fields", "Please enter email and password.");
+      return;
+    }
+
+    try {
+      const result = await dispatch(
+        loginUser({
+          email: normalizedEmail,
+          password,
+        }),
+      ).unwrap();
+
+      dispatch(clearError());
+      const role = result.user?.role;
+      if (role === "helper") {
+        router.replace("/User/Dashboard");
+        return;
+      }
+      router.replace("/User/Dashboard");
+    } catch (loginError) {
+      const message =
+        typeof loginError === "string"
+          ? loginError
+          : "Unable to login with provided credentials.";
+      Alert.alert("Login Failed", message);
+    }
   };
 
   return (
@@ -77,9 +110,16 @@ const LoginScreen = () => {
           </View>
 
           {/* Login Button */}
-          <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
-            <Text style={styles.loginText}>Login</Text>
+          <TouchableOpacity
+            style={[styles.loginBtn, isLoading && styles.loginBtnDisabled]}
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            <Text style={styles.loginText}>
+              {isLoading ? "Logging in..." : "Login"}
+            </Text>
           </TouchableOpacity>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
         </View>
 
         {/* Divider */}
@@ -207,10 +247,21 @@ const styles = StyleSheet.create({
     marginTop: hp("1%"),
   },
 
+  loginBtnDisabled: {
+    opacity: 0.7,
+  },
+
   loginText: {
     color: "#fff",
     fontSize: hp("2%"),
     fontWeight: "700",
+  },
+
+  errorText: {
+    color: "#D64545",
+    fontSize: hp("1.4%"),
+    marginTop: hp("1.2%"),
+    textAlign: "center",
   },
 
   divider: {
