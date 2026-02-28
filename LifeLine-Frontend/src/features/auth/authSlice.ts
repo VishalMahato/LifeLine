@@ -21,6 +21,14 @@ interface EmailCheckResult {
   };
 }
 
+interface CreateUserAuthResult {
+  success?: boolean;
+  message?: string;
+  data?: {
+    authId?: string;
+  };
+}
+
 export interface AuthState {
   userData: UserData | null;
   emailExists: boolean;
@@ -67,7 +75,7 @@ export const checkEmailExists = createAsyncThunk<
 });
 
 export const createUserAuth = createAsyncThunk<
-  unknown,
+  CreateUserAuthResult,
   FormData,
   { rejectValue: string }
 >("auth/createUserAuth", async (formData, { rejectWithValue }) => {
@@ -127,6 +135,8 @@ const authSlice = createSlice({
             role: action.payload.role || "user",
             profileImage: action.payload.userData.profileImage,
           };
+        } else if (!action.payload.exists) {
+          state.userData = null;
         }
       })
       .addCase(checkEmailExists.rejected, (state, action) => {
@@ -137,8 +147,9 @@ const authSlice = createSlice({
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(createUserAuth.fulfilled, (state) => {
+      .addCase(createUserAuth.fulfilled, (state, action) => {
         state.isLoading = false;
+        state.authId = action.payload?.data?.authId || state.authId;
       })
       .addCase(createUserAuth.rejected, (state, action) => {
         state.isLoading = false;
