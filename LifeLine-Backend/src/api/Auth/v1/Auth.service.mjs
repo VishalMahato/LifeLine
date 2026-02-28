@@ -3,6 +3,7 @@
 import Auth from './Auth.model.mjs';
 import AuthUtils from './Auth.utils.mjs';
 import AuthConstants from './Auth.constants.mjs';
+import { isDBConnected } from '../../../config/mongo.config.mjs';
 // Import service dependencies
 import UserService from '../../User/User.service.mjs';
 import HelperService from '../../Helper/Helper.service.mjs';
@@ -16,6 +17,12 @@ import LocationService from '../../Location/Location.service.mjs';
  * @since 2026
  */
 class AuthService {
+    static ensureDatabaseAvailable() {
+        if (!isDBConnected()) {
+            throw new Error('Database is unavailable. Please start MongoDB and try again.');
+        }
+    }
+
     /**
      * Create initial auth record (Signup Step 1)
      * @param {Object} authData - Authentication data
@@ -23,6 +30,7 @@ class AuthService {
      */
     static async createAuth(authData) {
         try {
+            this.ensureDatabaseAvailable();
             const { email, phoneNumber } = authData;
 
             // Check if email already exists
@@ -58,6 +66,7 @@ class AuthService {
      */
     static async checkEmailExists(email) {
         try {
+            this.ensureDatabaseAvailable();
             const auth = await Auth.findOne({ email: email.toLowerCase() })
                 .populate('userId')
                 .populate('helperId');
@@ -86,6 +95,7 @@ class AuthService {
      */
     static async updateAuth(authId, updateData) {
         try {
+            this.ensureDatabaseAvailable();
             const auth = await Auth.findByIdAndUpdate(
                 authId,
                 updateData,
@@ -110,6 +120,7 @@ class AuthService {
      */
     static async login(email, password) {
         try {
+            this.ensureDatabaseAvailable();
             // Find user
             const auth = await Auth.findForAuth(email);
             if (!auth) {

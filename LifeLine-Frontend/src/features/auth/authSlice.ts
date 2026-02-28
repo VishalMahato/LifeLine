@@ -1,5 +1,7 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import axios, { AxiosError } from "axios";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
 
 export interface UserData {
   fullName: string;
@@ -88,16 +90,51 @@ const initialState: AuthState = {
   authId: null,
 };
 
-const getApiBaseUrl = () => {
-  const root = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000";
-  return `${root.replace(/\/$/, "")}/api/auth/v1`;
+const getExpoHost = () => {
+  const hostUri =
+    (Constants.expoConfig as { hostUri?: string } | undefined)?.hostUri ||
+    (Constants.manifest as { debuggerHost?: string } | undefined)?.debuggerHost ||
+    (Constants as unknown as { manifest2?: { extra?: { expoGo?: { debuggerHost?: string } } } })
+      .manifest2?.extra?.expoGo?.debuggerHost;
+
+  if (!hostUri) {
+    return null;
+  }
+
+  return hostUri.split(":")[0] || null;
 };
+
+const getApiRoot = () => {
+  const envRoot = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (envRoot) {
+    return envRoot.replace(/\/$/, "");
+  }
+
+  const expoHost = getExpoHost();
+  if (expoHost) {
+    return `http://${expoHost}:5000`;
+  }
+
+  if (Platform.OS === "android") {
+    return "http://10.0.2.2:5000";
+  }
+
+  return "http://localhost:5000";
+};
+
+const getApiBaseUrl = () => `${getApiRoot()}/api/auth/v1`;
 
 const errorMessage = (error: unknown, fallback: string) => {
   if (error instanceof AxiosError) {
     const message = (error.response?.data as { message?: string } | undefined)
       ?.message;
-    return message || fallback;
+    if (message) {
+      return message;
+    }
+
+    if (!error.response) {
+      return "Unable to reach backend. Ensure server is running and EXPO_PUBLIC_API_URL points to your backend host.";
+    }
   }
   return fallback;
 };
@@ -123,13 +160,7 @@ export const createUserAuth = createAsyncThunk<
   { rejectValue: string }
 >("auth/createUserAuth", async (formData, { rejectWithValue }) => {
   try {
-    const response = await axios.post(
-      `${getApiBaseUrl()}/create/user/auth`,
-      formData,
-      {
-        headers: { "Content-Type": "multipart/form-data" },
-      },
-    );
+    const response = await axios.post(`${getApiBaseUrl()}/create/user/auth`, formData);
     return response.data;
   } catch (error) {
     return rejectWithValue(

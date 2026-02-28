@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import AuthUtils from '../src/api/Auth/v1/Auth.utils.mjs';
+import AuthConstants from '../src/api/Auth/v1/Auth.constants.mjs';
 
 describe('AuthUtils password hashing compatibility', () => {
   test('hashPassword creates an argon2 hash that verifies', async () => {
@@ -34,5 +35,21 @@ describe('AuthUtils password hashing compatibility', () => {
   test('extractTokenFromCookie returns null when token cookie is missing', () => {
     expect(AuthUtils.extractTokenFromCookie({})).toBeNull();
     expect(AuthUtils.extractTokenFromCookie(undefined)).toBeNull();
+  });
+
+  test('createErrorResponse maps database-unavailable errors to service unavailable', () => {
+    const result = AuthUtils.createErrorResponse(
+      'Failed to create auth record: Database is unavailable. Please start MongoDB and try again.',
+    );
+
+    expect(result.statusCode).toBe(AuthConstants.HTTP_STATUS.SERVICE_UNAVAILABLE);
+    expect(result.response.success).toBe(false);
+  });
+
+  test('createErrorResponse keeps default bad-request status for validation errors', () => {
+    const result = AuthUtils.createErrorResponse('Email is required');
+
+    expect(result.statusCode).toBe(AuthConstants.HTTP_STATUS.BAD_REQUEST);
+    expect(result.response.success).toBe(false);
   });
 });
