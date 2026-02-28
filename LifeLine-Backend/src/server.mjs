@@ -10,8 +10,8 @@ import helperRoutes from './api/Helper/Helper.routes.mjs';
 import medicalRoutes from './api/Medical/Medical.routes.mjs';
 import locationRoutes from './api/Location/Location.routes.mjs';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables without noisy runtime tips
+dotenv.config({ quiet: true });
 
 // Initialize Express app
 const app = express();
