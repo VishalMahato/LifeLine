@@ -11,7 +11,9 @@ import UserInfo, {
 } from "@/src/features/auth/screens/UserInfo";
 import EmergencyContactsScreen from "@/src/features/auth/screens/EmergencyContacts";
 import VerifySkillsScreen from "@/src/features/auth/screens/VerifySkillsScreen";
-import MedicalInfoScreen from "@/src/features/auth/screens/MedicalInfoScreen";
+import MedicalInfoScreen, {
+  type MedicalInfoHandle,
+} from "@/src/features/auth/screens/MedicalInfoScreen";
 import SecureLocationScreen from "@/src/features/auth/screens/SecureLocationScreen";
 import { createUserAuth } from "@/src/features/auth/authSlice";
 import { useAppDispatch, useAppSelector } from "@/src/core/store";
@@ -53,11 +55,13 @@ const helperSignUpSteps = [
 const SignUp = () => {
   const dispatch = useAppDispatch();
   const { isLoading, userData } = useAppSelector((state) => state.auth);
+  const isSavingMedical = useAppSelector((state) => state.medical.isSaving);
   const [currentRole, setCurrentRole] = React.useState<
     "user" | "helper" | null
   >(userData?.role || null);
   const [currentStep, setCurrentStep] = React.useState(0);
   const userInfoRef = useRef<UserInfoHandle>(null);
+  const medicalInfoRef = useRef<MedicalInfoHandle>(null);
   const currentSteps =
     currentRole === "helper" ? helperSignUpSteps : userSignUpSteps;
   const isLastStep = currentStep === currentSteps.length - 1;
@@ -90,6 +94,17 @@ const SignUp = () => {
       return;
     }
 
+    if (currentRole === "user" && currentStep === 2) {
+      if (!medicalInfoRef.current) {
+        return;
+      }
+
+      const success = await medicalInfoRef.current.handleSubmit();
+      if (!success) {
+        return;
+      }
+    }
+
     goToNextStep();
   };
 
@@ -103,6 +118,8 @@ const SignUp = () => {
     <View style={{ flex: 1 }}>
       {currentStep === 0 ? (
         <UserInfo ref={userInfoRef} onSubmit={handleUserInfoSubmit} />
+      ) : currentRole === "user" && currentStep === 2 ? (
+        <MedicalInfoScreen ref={medicalInfoRef} />
       ) : (
         currentSteps[currentStep].Element
       )}
@@ -118,10 +135,12 @@ const SignUp = () => {
           <TouchableOpacity
             style={[styles.nextBtn, currentStep === 0 && styles.nextBtnFull]}
             onPress={handleNext}
-            disabled={isLoading}
+            disabled={isLoading || isSavingMedical}
           >
             <Text style={styles.nextText}>
-              {currentStep === 0 && isLoading ? "Saving..." : "Next Step →"}
+              {((currentStep === 0 && isLoading) || isSavingMedical)
+                ? "Saving..."
+                : "Next Step →"}
             </Text>
           </TouchableOpacity>
         )}

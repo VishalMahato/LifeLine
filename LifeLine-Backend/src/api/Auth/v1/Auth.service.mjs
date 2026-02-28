@@ -689,6 +689,7 @@ class AuthService {
      */
     static async updateMedicalInfo(authId, medicalData) {
         try {
+            this.ensureDatabaseAvailable();
             const auth = await Auth.findById(authId).populate('userId').populate('helperId');
             const profileId = auth.userId?._id || auth.helperId?._id;
 
@@ -721,6 +722,38 @@ class AuthService {
             return medical;
         } catch (error) {
             throw new Error(`Medical info update failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Fetch medical information during signup for prefill/read-only flows
+     * @param {string} authId - Auth record ID
+     * @returns {Promise<Object|null>} Medical information or null when absent
+     */
+    static async getMedicalInfoForSignup(authId) {
+        try {
+            this.ensureDatabaseAvailable();
+            const auth = await Auth.findById(authId).populate('userId').populate('helperId');
+            if (!auth) {
+                throw new Error('Auth record not found');
+            }
+
+            const profileId = auth.userId?._id || auth.helperId?._id;
+            if (!profileId) {
+                return null;
+            }
+
+            try {
+                return await MedicalService.getMedicalInfoByUserId(profileId);
+            } catch (error) {
+                // "not found" should be treated as empty state during signup, not a hard failure.
+                if (/not found/i.test(error.message)) {
+                    return null;
+                }
+                throw error;
+            }
+        } catch (error) {
+            throw new Error(`Failed to fetch medical info for signup: ${error.message}`);
         }
     }
 

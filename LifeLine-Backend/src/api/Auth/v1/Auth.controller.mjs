@@ -402,6 +402,27 @@ class AuthController {
   }
 
   /**
+   * Fetch medical information during signup
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async getMedicalInfo(req, res) {
+    try {
+      const { authId } = req.params;
+      const result = await AuthService.getMedicalInfoForSignup(authId);
+
+      const response = AuthUtils.createSuccessResponse('Medical information retrieved successfully', {
+        medical: result,
+      });
+
+      res.status(response.statusCode).json(response.response);
+    } catch (error) {
+      const response = AuthUtils.createErrorResponse(error.message);
+      res.status(response.statusCode).json(response.response);
+    }
+  }
+
+  /**
    * Update medical information during signup
    * @param {Object} req - Express request object
    * @param {Object} res - Express response object

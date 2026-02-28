@@ -1,10 +1,12 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
 import authReducer from "@/src/features/auth/authSlice";
+import medicalReducer from "@/src/features/auth/medicalSlice";
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
+    medical: medicalReducer,
   },
 });
 
