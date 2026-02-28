@@ -17,6 +17,7 @@
   "license": "ISC",
   "packageManager": "pnpm@10.28.2",
   "dependencies": {
+    "argon2": "^0.44.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
@@ -25,8 +26,8 @@
     "express-validator": "^7.0.1",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^2.0.2",
-    "mongoose": "^9.1.6"
+    "mongoose": "^9.1.6",
+    "multer": "^2.0.2"
   },
   "devDependencies": {
     "jest": "^29.7.0",

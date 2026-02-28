@@ -1,6 +1,7 @@
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import argon2 from 'argon2';
+import bcrypt from 'bcryptjs';
 import AuthConstants from './Auth.constants.mjs';
 
 /**
@@ -10,18 +11,48 @@ import AuthConstants from './Auth.constants.mjs';
  * @since 2026
  */
 class AuthUtils {
+    static BCRYPT_HASH_REGEX = /^\$2[aby]\$/;
+
     /**
-     * Hash a password using bcrypt
+     * Hash a password using argon2id
      * @param {string} password - Plain text password
      * @returns {Promise<string>} Hashed password
      */
     static async hashPassword(password) {
         try {
-            const salt = await bcrypt.genSalt(AuthConstants.PASSWORD.SALT_ROUNDS);
-            return await bcrypt.hash(password, salt);
+            return await argon2.hash(password, {
+                type: argon2.argon2id,
+            });
         } catch (error) {
             throw new Error(`Password hashing failed: ${error.message}`);
         }
+    }
+
+    /**
+     * Check whether a stored hash uses argon2
+     * @param {string} hash - Stored password hash
+     * @returns {boolean}
+     */
+    static isArgon2Hash(hash) {
+        return typeof hash === 'string' && hash.startsWith('$argon2');
+    }
+
+    /**
+     * Check whether a stored hash uses legacy bcrypt
+     * @param {string} hash - Stored password hash
+     * @returns {boolean}
+     */
+    static isLegacyBcryptHash(hash) {
+        return typeof hash === 'string' && this.BCRYPT_HASH_REGEX.test(hash);
+    }
+
+    /**
+     * Whether an authenticated password should be rehashed to argon2
+     * @param {string} hash - Stored password hash
+     * @returns {boolean}
+     */
+    static needsPasswordRehash(hash) {
+        return this.isLegacyBcryptHash(hash);
     }
 
     /**
@@ -32,7 +63,19 @@ class AuthUtils {
      */
     static async comparePassword(password, hashedPassword) {
         try {
-            return await bcrypt.compare(password, hashedPassword);
+            if (!hashedPassword) {
+                return false;
+            }
+
+            if (this.isArgon2Hash(hashedPassword)) {
+                return await argon2.verify(hashedPassword, password);
+            }
+
+            if (this.isLegacyBcryptHash(hashedPassword)) {
+                return await bcrypt.compare(password, hashedPassword);
+            }
+
+            throw new Error('Unsupported password hash format');
         } catch (error) {
             throw new Error(`Password comparison failed: ${error.message}`);
         }

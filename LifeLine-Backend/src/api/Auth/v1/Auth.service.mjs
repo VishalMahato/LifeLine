@@ -138,6 +138,12 @@ class AuthService {
                 throw new Error(AuthConstants.MESSAGES.AUTH.INVALID_CREDENTIALS);
             }
 
+            // Seamless migration: rehash legacy bcrypt passwords to argon2 on successful login.
+            if (AuthUtils.needsPasswordRehash(auth.password)) {
+                auth.password = password;
+                await auth.save();
+            }
+
             // Reset login attempts on successful login
             await auth.resetLoginAttempts();
 
