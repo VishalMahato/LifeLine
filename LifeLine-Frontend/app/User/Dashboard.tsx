@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -12,8 +12,24 @@ import {
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen'
 import Ionicons from '@expo/vector-icons/Ionicons'
+import { useRouter } from 'expo-router'
+import { useAppSelector } from '@/src/core/store'
 
 const Dashboard = () => {
+  const router = useRouter();
+  const role = useAppSelector((state) => state.auth.userData?.role);
+
+  useEffect(() => {
+    if (!role) {
+      router.replace('/Login')
+      return
+    }
+
+    if (role !== 'user') {
+      router.replace('/User/Helper/HelperRequest')
+    }
+  }, [role, router])
+
   const scaleAnim = useRef(new Animated.Value(1)).current
   const holdTimeout = useRef<number | null>(null)
 
