@@ -16,8 +16,10 @@ import { useRouter } from 'expo-router'
 import { useAppSelector } from '@/src/core/store'
 
 const Dashboard = () => {
-  const router = useRouter();
-  const role = useAppSelector((state) => state.auth.userData?.role);
+  const router = useRouter()
+  const role = useAppSelector((state) => state.auth.userData?.role)
+  const scaleAnim = useRef(new Animated.Value(1)).current
+  const holdTimeout = useRef<number | null>(null)
 
   useEffect(() => {
     if (!role) {
@@ -30,8 +32,9 @@ const Dashboard = () => {
     }
   }, [role, router])
 
-  const scaleAnim = useRef(new Animated.Value(1)).current
-  const holdTimeout = useRef<number | null>(null)
+  if (!role || role !== 'user') {
+    return null
+  }
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
