@@ -51,18 +51,24 @@ export default function AccountDetailsPage() {
   const navigation = useNavigation<any>()
 
   const [isEdit, setIsEdit] = useState(false)
-  const [fullName, setFullName] = useState(INITIAL_VALUES.fullName)
-  const [phone, setPhone] = useState(INITIAL_VALUES.phone)
-  const [email, setEmail] = useState(INITIAL_VALUES.email)
+  const [savedProfile, setSavedProfile] = useState(INITIAL_VALUES)
+  const [fullName, setFullName] = useState(savedProfile.fullName)
+  const [phone, setPhone] = useState(savedProfile.phone)
+  const [email, setEmail] = useState(savedProfile.email)
 
   const handleCancel = () => {
-    setFullName(INITIAL_VALUES.fullName)
-    setPhone(INITIAL_VALUES.phone)
-    setEmail(INITIAL_VALUES.email)
+    setFullName(savedProfile.fullName)
+    setPhone(savedProfile.phone)
+    setEmail(savedProfile.email)
     setIsEdit(false)
   }
 
   const handleSave = () => {
+    setSavedProfile({
+      fullName,
+      phone,
+      email,
+    })
     setIsEdit(false)
   }
 
@@ -79,7 +85,7 @@ export default function AccountDetailsPage() {
 
           <Text style={styles.headerTitle}>Account Details</Text>
 
-          <TouchableOpacity onPress={() => setIsEdit((prev) => !prev)}>
+          <TouchableOpacity onPress={() => (isEdit ? handleCancel() : setIsEdit(true))}>
             <Ionicons name={isEdit ? 'close' : 'create-outline'} size={22} color="#1E73E8" />
           </TouchableOpacity>
         </View>
