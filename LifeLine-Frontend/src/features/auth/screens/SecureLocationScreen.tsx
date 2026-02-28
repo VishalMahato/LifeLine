@@ -10,6 +10,7 @@ import {
 } from 'react-native'
 import * as Location from 'expo-location'
 import { router } from 'expo-router'
+import { useAppSelector } from '@/src/core/store'
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
@@ -26,6 +27,7 @@ type LocationType = {
 }
 
 const SecureLocationScreen = () => {
+  const role = useAppSelector((state) => state.auth.userData?.role)
   const [loading, setLoading] = useState(false)
   const [location, setLocation] = useState<LocationType | null>(null)
   const [manualAddress, setManualAddress] = useState('')
@@ -75,13 +77,7 @@ const SecureLocationScreen = () => {
       return
     }
 
-    const finalLocation = location ?? {
-      address: manualAddress.trim(),
-      city: manualCity.trim(),
-      zipCode: manualZip.trim(),
-    }
-
-    console.log('Saved Location:', finalLocation)
+    const nextRoute = role === 'helper' ? '/HelperAccountReady' : '/AccountReady'
 
     Alert.alert(
       'Setup Complete',
@@ -89,7 +85,7 @@ const SecureLocationScreen = () => {
       [
         {
           text: 'Continue',
-          onPress: () => router.replace('/AccountReady'),
+          onPress: () => router.replace(nextRoute),
         },
       ]
     )
