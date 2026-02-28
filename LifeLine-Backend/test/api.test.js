@@ -23,6 +23,7 @@ describe('API Smoke Tests', () => {
 
   test.each([
     ['get', '/api/auth/profile'],
+    ['get', '/api/auth/v1/profile'],
     ['post', '/api/auth/change-password'],
     ['get', '/api/users/profile/me'],
     ['get', '/api/helpers/profile/me'],
