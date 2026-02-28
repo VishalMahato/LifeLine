@@ -1,4 +1,10 @@
-import React, { useState } from 'react';
+import React, {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -17,6 +23,8 @@ import {
   heightPercentageToDP as hp,
   widthPercentageToDP as wp,
 } from 'react-native-responsive-screen';
+import { useAppDispatch, useAppSelector } from '@/src/core/store';
+import { fetchSignupMedicalInfo, saveSignupMedicalInfo } from '@/src/features/auth/medicalSlice';
 
 type Allergy = {
   substance: string;
@@ -36,6 +44,10 @@ type Medication = {
   frequency: string;
   purpose: string;
 };
+
+export interface MedicalInfoHandle {
+  handleSubmit: () => Promise<boolean>;
+}
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const ALLERGY_SEVERITIES = ['mild', 'moderate', 'severe', 'life_threatening'];
@@ -68,7 +80,34 @@ const toInputDate = (date: Date | null): string => {
   return date.toISOString().slice(0, 10);
 };
 
-const MedicalInfoScreen = () => {
+const toDateOrNull = (value: unknown): Date | null => {
+  if (typeof value !== 'string' || !value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const toNumericString = (value: unknown): string => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return value;
+  }
+  return '';
+};
+
+const parseNumber = (value: string): number | undefined => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+  return parsed;
+};
+
+const MedicalInfoScreen = forwardRef<MedicalInfoHandle>((_props, ref) => {
   const [bloodType, setBloodType] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -83,6 +122,16 @@ const MedicalInfoScreen = () => {
 
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const dispatch = useAppDispatch();
+  const { authId } = useAppSelector((state) => state.auth);
+  const medicalInfo = useAppSelector((state) => state.medical.medicalInfo);
+  const isLoadingMedical = useAppSelector((state) => state.medical.isLoading);
+  const isSavingMedical = useAppSelector((state) => state.medical.isSaving);
+  const medicalError = useAppSelector((state) => state.medical.error);
+  const hasExistingData = useMemo(
+    () => !!medicalInfo && Object.keys(medicalInfo).length > 0,
+    [medicalInfo],
+  );
 
   const onDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDatePicker(false);
@@ -103,17 +152,85 @@ const MedicalInfoScreen = () => {
     setMedications((prev) => prev.map((item, i) => (i === index ? { ...item, [key]: value } : item)));
   };
 
+  useEffect(() => {
+    if (!authId) {
+      return;
+    }
+
+    dispatch(fetchSignupMedicalInfo(authId));
+  }, [authId, dispatch]);
+
+  useEffect(() => {
+    if (!medicalInfo || Object.keys(medicalInfo).length === 0) {
+      return;
+    }
+
+    setBloodType(typeof medicalInfo.bloodType === 'string' ? medicalInfo.bloodType : '');
+    setDateOfBirth(toDateOrNull(medicalInfo.dateOfBirth));
+    setHeightCm(toNumericString((medicalInfo.height as { value?: unknown } | undefined)?.value));
+    setWeightKg(toNumericString((medicalInfo.weight as { value?: unknown } | undefined)?.value));
+    setDisabilities(typeof medicalInfo.disabilities === 'string' ? medicalInfo.disabilities : '');
+    setOrganDonor(Boolean(medicalInfo.organDonor));
+
+    const incomingAllergies = Array.isArray(medicalInfo.allergies)
+      ? (medicalInfo.allergies as Record<string, unknown>[])
+      : [];
+    setAllergies(
+      incomingAllergies.length > 0
+        ? incomingAllergies.map((item) => ({
+            substance: typeof item.substance === 'string' ? item.substance : '',
+            severity: typeof item.severity === 'string' ? item.severity : '',
+            reaction: typeof item.reaction === 'string' ? item.reaction : '',
+          }))
+        : [emptyAllergy()],
+    );
+
+    const incomingConditions = Array.isArray(medicalInfo.conditions)
+      ? (medicalInfo.conditions as Record<string, unknown>[])
+      : [];
+    setConditions(
+      incomingConditions.length > 0
+        ? incomingConditions.map((item) => ({
+            name: typeof item.name === 'string' ? item.name : '',
+            status: typeof item.status === 'string' ? item.status : '',
+            notes: typeof item.notes === 'string' ? item.notes : '',
+          }))
+        : [emptyCondition()],
+    );
+
+    const incomingMedications = Array.isArray(medicalInfo.medications)
+      ? (medicalInfo.medications as Record<string, unknown>[])
+      : [];
+    setMedications(
+      incomingMedications.length > 0
+        ? incomingMedications.map((item) => ({
+            name: typeof item.name === 'string' ? item.name : '',
+            dosage: typeof item.dosage === 'string' ? item.dosage : '',
+            frequency: typeof item.frequency === 'string' ? item.frequency : '',
+            purpose: typeof item.purpose === 'string' ? item.purpose : '',
+          }))
+        : [emptyMedication()],
+    );
+  }, [medicalInfo]);
+
+  useEffect(() => {
+    if (medicalError) {
+      setSuccessMessage('');
+      setErrorMessage(medicalError);
+    }
+  }, [medicalError]);
+
   const validateMedicalInfo = () => {
     if (!bloodType) {
       setSuccessMessage('');
       setErrorMessage('Please select your blood type.');
-      return;
+      return false;
     }
 
     if (!dateOfBirth) {
       setSuccessMessage('');
       setErrorMessage('Please add your date of birth.');
-      return;
+      return false;
     }
 
     const invalidAllergy = allergies.some(
@@ -123,12 +240,87 @@ const MedicalInfoScreen = () => {
     if (invalidAllergy) {
       setSuccessMessage('');
       setErrorMessage('Each allergy with a substance must also include severity.');
-      return;
+      return false;
     }
 
     setErrorMessage('');
-    setSuccessMessage('Medical information looks valid and ready to submit.');
+    return true;
   };
+
+  const handleSubmit = async () => {
+    if (hasExistingData) {
+      setErrorMessage('');
+      setSuccessMessage('Medical information already exists and is locked for editing in signup.');
+      return true;
+    }
+
+    if (!validateMedicalInfo()) {
+      return false;
+    }
+
+    if (!authId) {
+      setSuccessMessage('');
+      setErrorMessage('Unable to save medical information: missing auth record.');
+      return false;
+    }
+
+    const heightValue = parseNumber(heightCm);
+    const weightValue = parseNumber(weightKg);
+
+    const payload: Record<string, unknown> = {
+      bloodType,
+      dateOfBirth: toInputDate(dateOfBirth),
+      organDonor,
+      disabilities: disabilities.trim(),
+      allergies: allergies
+        .filter((item) => item.substance.trim().length > 0)
+        .map((item) => ({
+          substance: item.substance.trim(),
+          severity: item.severity || 'moderate',
+          reaction: item.reaction.trim(),
+        })),
+      conditions: conditions
+        .filter((item) => item.name.trim().length > 0)
+        .map((item) => ({
+          name: item.name.trim(),
+          status: item.status || 'active',
+          notes: item.notes.trim(),
+        })),
+      medications: medications
+        .filter((item) => item.name.trim().length > 0)
+        .map((item) => ({
+          name: item.name.trim(),
+          dosage: item.dosage.trim(),
+          frequency: item.frequency || 'daily',
+          purpose: item.purpose.trim(),
+        })),
+    };
+
+    if (heightValue) {
+      payload.height = { value: heightValue, unit: 'cm' };
+    }
+
+    if (weightValue) {
+      payload.weight = { value: weightValue, unit: 'kg' };
+    }
+
+    try {
+      await dispatch(saveSignupMedicalInfo({ authId, medicalData: payload })).unwrap();
+      setErrorMessage('');
+      setSuccessMessage('Medical information saved successfully.');
+      return true;
+    } catch (error) {
+      const message =
+        typeof error === 'string' ? error : 'Failed to save medical information.';
+      setSuccessMessage('');
+      setErrorMessage(message);
+      return false;
+    }
+  };
+
+  useImperativeHandle(ref, () => ({
+    handleSubmit,
+  }));
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -158,6 +350,26 @@ const MedicalInfoScreen = () => {
         </View>
       ) : null}
 
+      {isLoadingMedical ? (
+        <View style={styles.infoBox}>
+          <Ionicons name="sync" size={hp('2%')} color="#2F80ED" />
+          <Text style={styles.infoText}>Loading saved medical information...</Text>
+        </View>
+      ) : null}
+
+      {hasExistingData ? (
+        <View style={styles.readOnlyBanner}>
+          <Ionicons name="lock-closed" size={hp('2%')} color="#2F80ED" />
+          <Text style={styles.readOnlyText}>
+            Existing medical information found. Fields are read-only during signup.
+          </Text>
+        </View>
+      ) : null}
+
+      <View
+        pointerEvents={hasExistingData ? 'none' : 'auto'}
+        style={hasExistingData ? styles.readOnlySection : undefined}
+      >
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Ionicons name="heart" size={hp('2.2%')} color="#E53935" />
@@ -373,9 +585,19 @@ const MedicalInfoScreen = () => {
         </View>
       </View>
 
-      <TouchableOpacity style={styles.primaryButton} onPress={validateMedicalInfo}>
-        <Text style={styles.primaryButtonText}>Review Medical Info</Text>
+      <TouchableOpacity
+        style={[
+          styles.primaryButton,
+          (isSavingMedical || hasExistingData) && styles.primaryButtonDisabled,
+        ]}
+        onPress={handleSubmit}
+        disabled={isSavingMedical || hasExistingData}
+      >
+        <Text style={styles.primaryButtonText}>
+          {isSavingMedical ? 'Saving...' : 'Review Medical Info'}
+        </Text>
       </TouchableOpacity>
+      </View>
 
       <View style={styles.securityRow}>
         <Ionicons name="lock-closed" size={hp('1.8%')} color="#2F80ED" />
@@ -385,8 +607,9 @@ const MedicalInfoScreen = () => {
       </View>
     </ScrollView>
   );
-};
+});
 
+MedicalInfoScreen.displayName = 'MedicalInfoScreen';
 export default MedicalInfoScreen;
 
 const styles = StyleSheet.create({
@@ -448,6 +671,38 @@ const styles = StyleSheet.create({
     color: '#2E7D32',
     flex: 1,
     fontSize: hp('1.5%'),
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: wp('2%'),
+    backgroundColor: '#E8F1FF',
+    borderRadius: 12,
+    padding: wp('3%'),
+    marginBottom: hp('2%'),
+  },
+  infoText: {
+    color: '#1D4ED8',
+    flex: 1,
+    fontSize: hp('1.5%'),
+  },
+  readOnlyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: wp('2%'),
+    backgroundColor: '#E3F2FD',
+    borderRadius: 12,
+    padding: wp('3%'),
+    marginBottom: hp('2%'),
+  },
+  readOnlyText: {
+    color: '#1E4E8C',
+    flex: 1,
+    fontSize: hp('1.5%'),
+    fontWeight: '600',
+  },
+  readOnlySection: {
+    opacity: 0.8,
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -568,6 +823,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: hp('2%'),
+  },
+  primaryButtonDisabled: {
+    backgroundColor: '#8BAFD9',
   },
   primaryButtonText: {
     color: '#FFFFFF',

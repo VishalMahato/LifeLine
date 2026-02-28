@@ -142,6 +142,13 @@ class AuthRoutes {
       AuthController.updateMedicalInfo,
     );
 
+    // Fetch medical info during signup
+    this.router.get(
+      '/signup/medical/:authId',
+      AuthValidator.validateAuthId,
+      AuthController.getMedicalInfo,
+    );
+
     // Update location during signup
     this.router.patch(
       '/signup/location/:authId',

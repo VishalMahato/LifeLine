@@ -30,6 +30,13 @@ describe('Complete API Validation Tests', () => {
     expect(response.body.success).toBe(false);
   });
 
+  test('GET /api/auth/v1/signup/medical/:authId validates auth ID format', async () => {
+    const response = await request(app).get('/api/auth/v1/signup/medical/not-a-valid-id');
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body.success).toBe(false);
+  });
+
   test('GET /api/auth/check-email with invalid email returns validation error', async () => {
     const response = await request(app).get('/api/auth/check-email/not-an-email');
 
