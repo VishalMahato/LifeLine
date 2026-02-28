@@ -5,6 +5,9 @@ import WhyLifeLineSection from '@/src/features/User/Section/WhyLifeLineSec'
 import CommunityPoweredSection from '@/src/features/User/Section/CommunityPoweredSection'
 import CoreFeaturesSection from '@/src/features/User/Section/CoreFeaturesSection'
 import VerifiedHelpersSection from '@/src/features/User/Section/VerifiedHelpersSection'
+import RealImpactSection from '@/src/features/User/Section/RealImpactSection'
+import PrivacySection from '@/src/features/User/Section/PrivacySection'
+import FooterCTASection from '@/src/features/User/Component/FooterCTASection'
 import { widthPercentageToDP as wp } from 'react-native-responsive-screen'
 
 export default function Home() {
@@ -22,6 +25,9 @@ export default function Home() {
       <CommunityPoweredSection />
       <CoreFeaturesSection />
       <VerifiedHelpersSection />
+      <RealImpactSection />
+      <PrivacySection />
+      <FooterCTASection />
     </ScrollView>
   )
 }

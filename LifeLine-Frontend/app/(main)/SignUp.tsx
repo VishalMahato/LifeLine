@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import React from 'react'
+import { router } from 'expo-router'
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
@@ -68,6 +69,15 @@ const SignUp = () => {
           </TouchableOpacity>
         )}
       </View>
+
+      {currentStep === 0 && (
+        <View style={styles.loginPrompt}>
+          <Text style={styles.loginPromptText}>Already have an account? </Text>
+          <TouchableOpacity onPress={() => router.push('/Login')}>
+            <Text style={styles.loginLink}>Login</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   )
 }
@@ -226,5 +236,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: hp('1.9%'),
     fontWeight: '700',
+  },
+
+  loginPrompt: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: hp('2%'),
+    marginBottom: hp('4%'),
+  },
+
+  loginPromptText: {
+    fontSize: hp('1.6%'),
+    color: '#5F6C7B',
+  },
+
+  loginLink: {
+    fontSize: hp('1.6%'),
+    color: '#2F80ED',
+    fontWeight: '600',
   },
 })
