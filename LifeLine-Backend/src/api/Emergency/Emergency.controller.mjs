@@ -18,12 +18,53 @@ export class EmergencyController {
   static async triggerSOS(req, res) {
     try {
       const userId = req.user.userId;
+      const { longitude, latitude, address } = req.body;
+
+      if (longitude === undefined || latitude === undefined) {
+        return res.status(400).json({
+          success: false,
+          message: 'Location coordinates (longitude and latitude) are required for SOS',
+        });
+      }
+
+      if (!address) {
+        return res.status(400).json({
+          success: false,
+          message: 'Address is required for SOS',
+        });
+      }
+
+      const parsedLongitude = Number(longitude);
+      const parsedLatitude = Number(latitude);
+
+      if (
+        Number.isNaN(parsedLongitude) ||
+        parsedLongitude < -180 ||
+        parsedLongitude > 180
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid longitude value (must be between -180 and 180)',
+        });
+      }
+
+      if (
+        Number.isNaN(parsedLatitude) ||
+        parsedLatitude < -90 ||
+        parsedLatitude > 90
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid latitude value (must be between -90 and 90)',
+        });
+      }
+
       const sosData = {
         title: req.body.title,
         message: req.body.message,
         location: {
-          coordinates: [req.body.longitude, req.body.latitude],
-          address: req.body.address,
+          coordinates: [parsedLongitude, parsedLatitude],
+          address,
           accuracy: req.body.accuracy,
           provider: req.body.provider || 'gps',
         },

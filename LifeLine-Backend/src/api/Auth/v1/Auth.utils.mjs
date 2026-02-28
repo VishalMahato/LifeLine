@@ -280,6 +280,15 @@ class AuthUtils {
     }
 
     /**
+     * Extract token from request cookies
+     * @param {Object} cookies - Request cookies object
+     * @returns {string|null} Token or null
+     */
+    static extractTokenFromCookie(cookies) {
+        return cookies?.token || null;
+    }
+
+    /**
      * Create standardized API response
      * @param {boolean} success - Success status
      * @param {string} message - Response message

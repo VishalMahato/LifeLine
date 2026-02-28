@@ -18,7 +18,12 @@ class AuthMiddleware {
     static async authenticate(req, res, next) {
         try {
             const authHeader = req.headers.authorization;
-            const token = AuthUtils.extractTokenFromHeader(authHeader);
+            let token = AuthUtils.extractTokenFromHeader(authHeader);
+
+            // Fallback to cookie-based auth when Authorization header is absent
+            if (!token) {
+                token = AuthUtils.extractTokenFromCookie(req.cookies);
+            }
 
             if (!token) {
                 const response = AuthUtils.createErrorResponse(
@@ -127,7 +132,11 @@ class AuthMiddleware {
      */
     static optionalAuth(req, res, next) {
         const authHeader = req.headers.authorization;
-        const token = AuthUtils.extractTokenFromHeader(authHeader);
+        let token = AuthUtils.extractTokenFromHeader(authHeader);
+
+        if (!token) {
+            token = AuthUtils.extractTokenFromCookie(req.cookies);
+        }
 
         if (token) {
             try {
