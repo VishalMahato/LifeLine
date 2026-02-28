@@ -5,8 +5,8 @@
   "type": "module",
   "main": "src/server.mjs",
   "scripts": {
-    "test": "node --test test/integration.test.js",
-    "test:jest": "jest",
+    "test": "NODE_ENV=test node --test test/integration.test.js",
+    "test:jest": "NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --runInBand --watchman=false --config jest.config.cjs",
     "start": "node src/server.mjs",
     "dev": "nodemon src/server.mjs",
     "format": "prettier --write .",

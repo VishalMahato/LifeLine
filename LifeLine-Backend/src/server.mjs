@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { connectDB, disconnectDB, getMongoStatus, isDBConnected } from './config/mongo.config.mjs';
 import authRoutes from './api/Auth/v1/Auth.routes.mjs';
 import userRoutes from './api/User/User.routes.mjs';
@@ -93,39 +95,45 @@ const connectDBWithRetry = async () => {
   }
 };
 
-const startServer = async () => {
+const registerShutdownHandlers = (server) => {
+  const shutdown = (signal) => {
+    console.log(`${signal} received. Shutting down gracefully...`);
+    server.close(async () => {
+      await disconnectDB();
+      process.exit(0);
+    });
+  };
+
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
+  process.once('SIGINT', () => shutdown('SIGINT'));
+};
+
+export const startServer = async () => {
   try {
     const server = app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-      console.log(`🗄️ MongoDB required: ${MONGODB_REQUIRED}`);
+      console.log(`Server running on port ${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV}`);
+      console.log(`MongoDB required: ${MONGODB_REQUIRED}`);
     });
 
     await connectDBWithRetry();
 
-    // Graceful shutdown
-    process.on('SIGTERM', async () => {
-      console.log('SIGTERM received. Shutting down gracefully...');
-      server.close(async () => {
-        await disconnectDB();
-        process.exit(0);
-      });
-    });
-
-    process.on('SIGINT', async () => {
-      console.log('\nSIGINT received. Shutting down gracefully...');
-      server.close(async () => {
-        await disconnectDB();
-        process.exit(0);
-      });
-    });
+    registerShutdownHandlers(server);
+    return server;
   } catch (error) {
     console.error('Failed to start server:', error);
-    process.exit(1);
+    throw error;
   }
 };
 
-// Start the server
-startServer();
+const isDirectExecution = () => {
+  if (!process.argv[1]) return false;
+  return path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+};
 
+if (process.env.NODE_ENV !== 'test' && isDirectExecution()) {
+  startServer().catch(() => process.exit(1));
+}
+
+export { app };
 export default app;
