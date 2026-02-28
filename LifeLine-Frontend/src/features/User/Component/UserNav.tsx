@@ -47,8 +47,8 @@ export default function UserNav() {
             <Link href="/(main)/Home" style={styles.link}>
               Home
             </Link>
-            <Link href="/(tabs)/explore" style={styles.link}>
-              Explore
+            <Link href="/User" style={styles.link}>
+              User
             </Link>
             <Link href="/modal" style={styles.link}>
               About
@@ -72,8 +72,8 @@ export default function UserNav() {
           <Link href="/(main)/Home" style={styles.mobileLink} onPress={toggleMenu}>
             Home
           </Link>
-          <Link href="/(tabs)/explore" style={styles.mobileLink} onPress={toggleMenu}>
-            Explore
+          <Link href="/User" style={styles.mobileLink} onPress={toggleMenu}>
+            User
           </Link>
           <Link href="/modal" style={styles.mobileLink} onPress={toggleMenu}>
             About

@@ -1,7 +1,9 @@
 import { openURL } from "expo-linking";
-import React, { useState } from "react";
+import * as Location from "expo-location";
+import React, { useEffect, useState } from "react";
 import {
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +16,7 @@ import {
   widthPercentageToDP as wp,
 } from "react-native-responsive-screen";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { WebView } from "react-native-webview";
 
 // Interfaces for type safety
 interface Helper {
@@ -167,21 +170,93 @@ const SearchBar: React.FC = () => (
   </View>
 );
 
-const MapPreview: React.FC = () => (
-  <View style={styles.mapCard}>
-    <Image
-      source={{
-        uri: "https://staticmap.openstreetmap.de/staticmap.php?center=37.7749,-122.4194&zoom=13&size=600x300",
-      }}
-      style={styles.map}
-      resizeMode="cover"
-    />
-    <View style={styles.liveBadge}>
-      <View style={styles.liveDot} />
-      <Text style={styles.liveText}>LIVE VIEW ENABLED</Text>
+const MapPreview: React.FC = () => {
+  const [location, setLocation] = useState<Location.LocationObject | null>(
+    null,
+  );
+  const [htmlContent, setHtmlContent] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") return;
+
+      const currentLocation = await Location.getCurrentPositionAsync({});
+      setLocation(currentLocation);
+    })();
+  }, []);
+
+  useEffect(() => {
+    const defaultLocation = { latitude: 51.505, longitude: -0.09 };
+    const currentLat = location?.coords.latitude ?? defaultLocation.latitude;
+    const currentLng = location?.coords.longitude ?? defaultLocation.longitude;
+
+    const helperMarkers = mockHelpers
+      .map(
+        (helper) =>
+          `L.marker([${helper.latitude}, ${helper.longitude}]).addTo(map).bindPopup('${helper.name}');`,
+      )
+      .join("");
+    const ngoMarkers = mockNGOs
+      .map(
+        (ngo) =>
+          `L.marker([${ngo.latitude}, ${ngo.longitude}]).addTo(map).bindPopup('${ngo.name}');`,
+      )
+      .join("");
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <style>
+          html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+          #map { width: 100%; height: 100%; }
+        </style>
+      </head>
+      <body>
+        <div id="map"></div>
+        <script>
+          const map = L.map('map').setView([${currentLat}, ${currentLng}], 13);
+          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+          }).addTo(map);
+          L.marker([${currentLat}, ${currentLng}]).addTo(map).bindPopup('Your Location').openPopup();
+          ${helperMarkers}
+          ${ngoMarkers}
+        </script>
+      </body>
+      </html>
+    `;
+
+    setHtmlContent(html);
+  }, [location]);
+
+  return (
+    <View style={styles.mapCard}>
+      {Platform.OS === "web" ? (
+        <View style={styles.mapUnavailable}>
+          <Text style={styles.mapUnavailableText}>
+            Map preview is not available on web.
+          </Text>
+        </View>
+      ) : (
+        <WebView
+          source={{ html: htmlContent }}
+          style={styles.map}
+          javaScriptEnabled
+          domStorageEnabled
+        />
+      )}
+      <View style={styles.liveBadge}>
+        <View style={styles.liveDot} />
+        <Text style={styles.liveText}>LIVE VIEW ENABLED</Text>
+      </View>
     </View>
-  </View>
-);
+  );
+};
 
 const HelperCard: React.FC<{ helper: Helper }> = ({ helper }) => (
   <View style={styles.card}>
@@ -263,7 +338,11 @@ const NearbyScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"helpers" | "ngos">("helpers");
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: hp("5%") }}
+    >
       <Header />
       <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
       <SearchBar />
@@ -303,8 +382,6 @@ export default NearbyScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: wp("6%"),
-    paddingTop: hp("4%"),
     backgroundColor: "#F8FAFC",
   },
   header: {
@@ -312,6 +389,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: hp("2%"),
+    paddingHorizontal: wp("6%"),
+    paddingTop: hp("4%"),
   },
   title: {
     fontSize: hp("2.6%"),
@@ -323,6 +402,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: hp("2%"),
     padding: hp("0.5%"),
+    marginHorizontal: wp("6%"),
   },
   tab: {
     flex: 1,
@@ -354,6 +434,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp("4%"),
     marginBottom: hp("2%"),
     height: hp("6%"),
+    marginHorizontal: wp("6%"),
   },
   searchInput: {
     flex: 1,
@@ -366,10 +447,23 @@ const styles = StyleSheet.create({
     marginBottom: hp("2%"),
     aspectRatio: 2, // Maintains a responsive 2:1 aspect ratio for the map
     backgroundColor: "#E5E7EB", // Placeholder background
+    marginHorizontal: wp("6%"),
   },
   map: {
     width: "100%",
     height: "100%",
+  },
+  mapUnavailable: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  mapUnavailableText: {
+    color: "#DC2626",
+    fontSize: hp("1.8%"),
+    fontWeight: "600",
+    textAlign: "center",
+    paddingHorizontal: wp("4%"),
   },
   liveBadge: {
     position: "absolute",
@@ -415,6 +509,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    marginHorizontal: wp("6%"),
   },
   cardHeader: {
     flexDirection: "row",
