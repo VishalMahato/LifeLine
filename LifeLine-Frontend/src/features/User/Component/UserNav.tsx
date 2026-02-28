@@ -1,5 +1,5 @@
 import AntDesign from '@expo/vector-icons/AntDesign';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
   Animated,
@@ -57,7 +57,7 @@ export default function UserNav() {
         ) : null}
 
         {isLargeScreen ? (
-          <Pressable style={styles.loginBtn}>
+          <Pressable style={styles.loginBtn} onPress={() => router.push('/Login')}>
             <Text style={styles.loginText}>Login</Text>
           </Pressable>
         ) : (
@@ -79,7 +79,13 @@ export default function UserNav() {
             About
           </Link>
 
-          <Pressable style={styles.mobileLogin} onPress={toggleMenu}>
+          <Pressable
+            style={styles.mobileLogin}
+            onPress={() => {
+              toggleMenu();
+              router.push('/Login');
+            }}
+          >
             <Text style={styles.loginText}>Login</Text>
           </Pressable>
         </Animated.View>
