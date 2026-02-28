@@ -1,10 +1,5 @@
-
+import { Redirect } from 'expo-router';
 
 export default function Index() {
-  return (
-    <>
-      {/* <Stack.Screen options={{ title: "Home" }} /> */}
-      <WelcomeScreen />
-    </>
-  );
+  return <Redirect href="/(tabs)" />;
 }

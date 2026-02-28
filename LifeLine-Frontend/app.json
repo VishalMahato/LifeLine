@@ -12,8 +12,7 @@
         {
           "root": "./app"
         }
-      ],
-      "@react-native-community/datetimepicker"
+      ]
     ],
     "splash": {
       "image": "./assets/icons/icon.png",
