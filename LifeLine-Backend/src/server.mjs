@@ -2,6 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB, disconnectDB, getMongoStatus, isDBConnected } from './config/mongo.config.mjs';
+import authRoutes from './api/Auth/v1/Auth.routes.mjs';
+import userRoutes from './api/User/User.routes.mjs';
+import helperRoutes from './api/Helper/Helper.routes.mjs';
+import medicalRoutes from './api/Medical/Medical.routes.mjs';
+import locationRoutes from './api/Location/Location.routes.mjs';
 
 // Load environment variables
 dotenv.config();
@@ -32,8 +37,12 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes will be imported here
-// Example: app.use('/api/auth', authRoutes);
+// Use API routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/helpers', helperRoutes);
+app.use('/api/medical', medicalRoutes);
+app.use('/api/locations', locationRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -86,7 +95,6 @@ const connectDBWithRetry = async () => {
 
 const startServer = async () => {
   try {
-    // Start Express server
     const server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
