@@ -54,7 +54,11 @@ export default function Profile() {
     {
       icon: 'medkit',
       title: 'Medical Profile',
-      onPress: () => router.push('/User/Profile/MedicalProfile'),
+      onPress: () =>
+        router.push({
+          pathname: '/(global)/MedicalProfile/[medical_Id]',
+          params: { medical_Id: '25' },
+        }),
     },
     { icon: 'people', title: 'Emergency Contacts' },
   ]
