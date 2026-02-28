@@ -4,6 +4,7 @@ import AuthValidator from './Auth.validator.mjs';
 import AuthConstants from './Auth.constants.mjs';
 import AuthMiddleware from './Auth.middleware.mjs';
 import rateLimit from 'express-rate-limit';
+import { uploadProfilePicture, handleMulterError } from '../../../utils/multer.utils.mjs';
 
 /**
  * AuthRoutes - Route definitions for authentication endpoints
@@ -12,243 +13,226 @@ import rateLimit from 'express-rate-limit';
  * @since 2026
  */
 class AuthRoutes {
-    constructor() {
-        this.router = express.Router();
-        this.setupRoutes();
-        this.setupMiddleware();
-    }
+  constructor() {
+    this.router = express.Router();
+    this.setupRoutes();
+    this.setupMiddleware();
+  }
 
-    /**
-     * Setup rate limiting middleware
-     */
-    setupMiddleware() {
-        // Signup rate limiting
-        const signupLimiter = rateLimit({
-            windowMs: AuthConstants.RATE_LIMIT.SIGNUP.windowMs,
-            max: AuthConstants.RATE_LIMIT.SIGNUP.max,
-            message: {
-                success: false,
-                message: 'Too many signup attempts, please try again later.',
-                retryAfter: Math.ceil(AuthConstants.RATE_LIMIT.SIGNUP.windowMs / 1000)
-            },
-            standardHeaders: true,
-            legacyHeaders: false,
-        });
+  /**
+   * Setup rate limiting middleware
+   */
+  setupMiddleware() {
+    // Signup rate limiting
+    const signupLimiter = rateLimit({
+      windowMs: AuthConstants.RATE_LIMIT.SIGNUP.windowMs,
+      max: AuthConstants.RATE_LIMIT.SIGNUP.max,
+      message: {
+        success: false,
+        message: 'Too many signup attempts, please try again later.',
+        retryAfter: Math.ceil(AuthConstants.RATE_LIMIT.SIGNUP.windowMs / 1000),
+      },
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
 
-        // Login rate limiting
-        const loginLimiter = rateLimit({
-            windowMs: AuthConstants.RATE_LIMIT.LOGIN.windowMs,
-            max: AuthConstants.RATE_LIMIT.LOGIN.max,
-            message: {
-                success: false,
-                message: 'Too many login attempts, please try again later.',
-                retryAfter: Math.ceil(AuthConstants.RATE_LIMIT.LOGIN.windowMs / 1000)
-            },
-            standardHeaders: true,
-            legacyHeaders: false,
-        });
+    // Login rate limiting
+    const loginLimiter = rateLimit({
+      windowMs: AuthConstants.RATE_LIMIT.LOGIN.windowMs,
+      max: AuthConstants.RATE_LIMIT.LOGIN.max,
+      message: {
+        success: false,
+        message: 'Too many login attempts, please try again later.',
+        retryAfter: Math.ceil(AuthConstants.RATE_LIMIT.LOGIN.windowMs / 1000),
+      },
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
 
-        // General rate limiting
-        const generalLimiter = rateLimit({
-            windowMs: AuthConstants.RATE_LIMIT.GENERAL.windowMs,
-            max: AuthConstants.RATE_LIMIT.GENERAL.max,
-            message: {
-                success: false,
-                message: 'Too many requests, please try again later.',
-                retryAfter: Math.ceil(AuthConstants.RATE_LIMIT.GENERAL.windowMs / 1000)
-            },
-            standardHeaders: true,
-            legacyHeaders: false,
-        });
+    // General rate limiting
+    const generalLimiter = rateLimit({
+      windowMs: AuthConstants.RATE_LIMIT.GENERAL.windowMs,
+      max: AuthConstants.RATE_LIMIT.GENERAL.max,
+      message: {
+        success: false,
+        message: 'Too many requests, please try again later.',
+        retryAfter: Math.ceil(AuthConstants.RATE_LIMIT.GENERAL.windowMs / 1000),
+      },
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
 
-        // Apply rate limiting to specific routes
-        this.router.use('/signup-step1', signupLimiter);
-        this.router.use('/login', loginLimiter);
-        this.router.use(generalLimiter);
-    }
+    // Apply rate limiting to specific routes
+    this.router.use('/signup-step1', signupLimiter);
+    this.router.use('/create/user/auth', signupLimiter);
+    this.router.use('/login', loginLimiter);
+    this.router.use(generalLimiter);
+  }
 
-    /**
-     * Setup all authentication routes
-     */
-    setupRoutes() {
-        // Public routes (no authentication required)
-        this.setupPublicRoutes();
+  /**
+   * Setup all authentication routes
+   */
+  setupRoutes() {
+    // Public routes (no authentication required)
+    this.setupPublicRoutes();
 
-        // Protected routes (authentication required)
-        this.setupProtectedRoutes();
-    }
+    // Protected routes (authentication required)
+    this.setupProtectedRoutes();
+  }
 
-    /**
-     * Setup public routes
-     */
-    setupPublicRoutes() {
-        // Signup step 1 - Create auth record
-        this.router.post(
-            '/signup-step1',
-            AuthValidator.validateSignupStep1,
-            AuthController.signupStep1
-        );
+  /**
+   * Setup public routes
+   */
+  setupPublicRoutes() {
+    // Create auth record with optional profile image upload
+    this.router.post(
+      '/create/user/auth',
+      uploadProfilePicture,
+      handleMulterError,
+      AuthValidator.validateSignupStep1,
+      AuthController.signupStep1,
+    );
 
-        // Complete user signup (Steps 2-5)
-        this.router.post(
-            '/signup-complete/user/:authId',
-            AuthValidator.validateAuthId,
-            AuthController.completeUserSignup
-        );
+    // Signup step 1 - Create auth record
+    this.router.post(
+      '/signup-step1',
+      AuthValidator.validateSignupStep1,
+      AuthController.signupStep1,
+    );
 
-        // Complete helper signup (Steps 2-5)
-        this.router.post(
-            '/signup-complete/helper/:authId',
-            AuthValidator.validateAuthId,
-            AuthController.completeHelperSignup
-        );
+    // Complete user signup (Steps 2-5)
+    this.router.post(
+      '/signup-complete/user/:authId',
+      AuthValidator.validateAuthId,
+      AuthController.completeUserSignup,
+    );
 
-        // Update user profile during signup
-        this.router.patch(
-            '/signup/user/:authId',
-            AuthValidator.validateAuthId,
-            AuthController.updateUserProfile
-        );
+    // Complete helper signup (Steps 2-5)
+    this.router.post(
+      '/signup-complete/helper/:authId',
+      AuthValidator.validateAuthId,
+      AuthController.completeHelperSignup,
+    );
 
-        // Update helper profile during signup
-        this.router.patch(
-            '/signup/helper/:authId',
-            AuthValidator.validateAuthId,
-            AuthController.updateHelperProfile
-        );
+    // Update user profile during signup
+    this.router.patch(
+      '/signup/user/:authId',
+      AuthValidator.validateAuthId,
+      AuthController.updateUserProfile,
+    );
 
-        // Update emergency contacts during signup
-        this.router.patch(
-            '/signup/emergency-contacts/:authId',
-            AuthValidator.validateAuthId,
-            AuthController.updateEmergencyContacts
-        );
+    // Update helper profile during signup
+    this.router.patch(
+      '/signup/helper/:authId',
+      AuthValidator.validateAuthId,
+      AuthController.updateHelperProfile,
+    );
 
-        // Update medical info during signup
-        this.router.patch(
-            '/signup/medical/:authId',
-            AuthValidator.validateAuthId,
-            AuthController.updateMedicalInfo
-        );
+    // Update emergency contacts during signup
+    this.router.patch(
+      '/signup/emergency-contacts/:authId',
+      AuthValidator.validateAuthId,
+      AuthController.updateEmergencyContacts,
+    );
 
-        // Update location during signup
-        this.router.patch(
-            '/signup/location/:authId',
-            AuthValidator.validateAuthId,
-            AuthController.updateLocation
-        );
+    // Update medical info during signup
+    this.router.patch(
+      '/signup/medical/:authId',
+      AuthValidator.validateAuthId,
+      AuthController.updateMedicalInfo,
+    );
 
-        // Get signup progress
-        this.router.get(
-            '/signup/progress/:authId',
-            AuthValidator.validateAuthId,
-            AuthController.getSignupProgress
-        );
+    // Update location during signup
+    this.router.patch(
+      '/signup/location/:authId',
+      AuthValidator.validateAuthId,
+      AuthController.updateLocation,
+    );
 
-        // Check if email exists
-        this.router.get(
-            '/check-email/:email',
-            AuthValidator.validateEmailCheck,
-            AuthController.checkEmail
-        );
+    // Get signup progress
+    this.router.get(
+      '/signup/progress/:authId',
+      AuthValidator.validateAuthId,
+      AuthController.getSignupProgress,
+    );
 
-        // Login
-        this.router.post(
-            '/login',
-            AuthValidator.validateLogin,
-            AuthController.login
-        );
+    // Check if email exists
+    this.router.get(
+      '/check-email/:email',
+      AuthValidator.validateEmailCheck,
+      AuthController.checkEmail,
+    );
 
-        // Social login
-        this.router.post(
-            '/social-login',
-            AuthValidator.validateSocialLogin,
-            AuthController.socialLogin
-        );
+    // Login
+    this.router.post('/login', AuthValidator.validateLogin, AuthController.login);
 
-        // Email verification
-        this.router.get(
-            '/verify-email/:token',
-            AuthValidator.validateEmailVerification,
-            AuthController.verifyEmail
-        );
+    // Social login
+    this.router.post(
+      '/social-login',
+      AuthValidator.validateSocialLogin,
+      AuthController.socialLogin,
+    );
 
-        // Password reset request
-        this.router.post(
-            '/forgot-password',
-            AuthValidator.validatePasswordResetRequest,
-            AuthController.requestPasswordReset
-        );
+    // Email verification
+    this.router.get(
+      '/verify-email/:token',
+      AuthValidator.validateEmailVerification,
+      AuthController.verifyEmail,
+    );
 
-        // Password reset
-        this.router.post(
-            '/reset-password',
-            AuthValidator.validatePasswordReset,
-            AuthController.resetPassword
-        );
+    // Password reset request
+    this.router.post(
+      '/forgot-password',
+      AuthValidator.validatePasswordResetRequest,
+      AuthController.requestPasswordReset,
+    );
 
-        // Refresh token
-        this.router.post(
-            '/refresh-token',
-            AuthController.refreshToken
-        );
+    // Password reset
+    this.router.post(
+      '/reset-password',
+      AuthValidator.validatePasswordReset,
+      AuthController.resetPassword,
+    );
 
-        // Update auth record (used by other services)
-        this.router.patch(
-            '/:authId',
-            AuthValidator.validateAuthId,
-            AuthController.updateAuth
-        );
-    }
+    // Refresh token
+    this.router.post('/refresh-token', AuthController.refreshToken);
 
-    /**
-     * Setup protected routes (require authentication)
-     */
-    setupProtectedRoutes() {
-        // Change password
-        this.router.post(
-            '/change-password',
-            AuthMiddleware.authenticate,
-            AuthValidator.validateChangePassword,
-            AuthController.changePassword
-        );
+    // Update auth record (used by other services)
+    this.router.patch('/:authId', AuthValidator.validateAuthId, AuthController.updateAuth);
+  }
 
-        // Get profile
-        this.router.get(
-            '/profile',
-            AuthMiddleware.authenticate,
-            AuthController.getProfile
-        );
+  /**
+   * Setup protected routes (require authentication)
+   */
+  setupProtectedRoutes() {
+    // Change password
+    this.router.post(
+      '/change-password',
+      AuthMiddleware.authenticate,
+      AuthValidator.validateChangePassword,
+      AuthController.changePassword,
+    );
 
-        // Update profile
-        this.router.patch(
-            '/profile',
-            AuthMiddleware.authenticate,
-            AuthController.updateProfile
-        );
+    // Get profile
+    this.router.get('/profile', AuthMiddleware.authenticate, AuthController.getProfile);
 
-        // Delete account
-        this.router.delete(
-            '/account',
-            AuthMiddleware.authenticate,
-            AuthController.deleteAccount
-        );
+    // Update profile
+    this.router.patch('/profile', AuthMiddleware.authenticate, AuthController.updateProfile);
 
-        // Logout
-        this.router.post(
-            '/logout',
-            AuthMiddleware.authenticate,
-            AuthController.logout
-        );
-    }
+    // Delete account
+    this.router.delete('/account', AuthMiddleware.authenticate, AuthController.deleteAccount);
 
-    /**
-     * Get the configured router
-     * @returns {Object} Express router
-     */
-    getRouter() {
-        return this.router;
-    }
+    // Logout
+    this.router.post('/logout', AuthMiddleware.authenticate, AuthController.logout);
+  }
+
+  /**
+   * Get the configured router
+   * @returns {Object} Express router
+   */
+  getRouter() {
+    return this.router;
+  }
 }
 
 // Export singleton instance

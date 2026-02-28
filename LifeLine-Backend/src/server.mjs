@@ -12,6 +12,7 @@ import locationRoutes from './api/Location/Location.routes.mjs';
 
 // Load environment variables without noisy runtime tips
 dotenv.config({ quiet: true });
+const runtimeDir = path.dirname(fileURLToPath(import.meta.url));
 
 // Initialize Express app
 const app = express();
@@ -26,6 +27,7 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(runtimeDir, 'uploads')));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -39,12 +41,17 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Use API routes
+// Use API routes (keep current and v1 aliases)
 app.use('/api/auth', authRoutes);
+app.use('/api/auth/v1', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/users/v1', userRoutes);
 app.use('/api/helpers', helperRoutes);
+app.use('/api/helpers/v1', helperRoutes);
 app.use('/api/medical', medicalRoutes);
+app.use('/api/medical/v1', medicalRoutes);
 app.use('/api/locations', locationRoutes);
+app.use('/api/locations/v1', locationRoutes);
 
 // 404 handler
 app.use((req, res) => {

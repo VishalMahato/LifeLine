@@ -1,3 +1,9 @@
+import { setUserData } from "@/src/features/auth/authSlice";
+import {
+  existingUserSchema,
+  validateForm,
+} from "@/src/features/auth/validation";
+import { useAppDispatch } from "@/src/core/store";
 import { filePicker } from "@/src/utils/filePicker.utils";
 import React, { useState } from "react";
 import {
@@ -8,7 +14,7 @@ import {
   Image,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
 import {
@@ -17,11 +23,14 @@ import {
 } from "react-native-responsive-screen";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
-
-
 const UserInfo = () => {
+  const dispatch = useAppDispatch();
   const [role, setRole] = useState("user");
   const [image, setImage] = useState<string | null>(null);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleImagePick = async () => {
     try {
@@ -30,8 +39,29 @@ const UserInfo = () => {
         setImage(result.assets[0].uri);
       }
     } catch (error) {
-      Alert.alert('Unable to open gallery', String(error));
+      Alert.alert("Unable to open gallery", String(error));
     }
+  };
+
+  const handleContinue = async () => {
+    const formValues = { fullName, email, mobileNumber, role };
+    const validationErrors = await validateForm(existingUserSchema, formValues);
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
+    dispatch(
+      setUserData({
+        fullName,
+        email,
+        mobileNumber,
+        role: role as "user" | "helper",
+        profileImage: image || undefined,
+      }),
+    );
+    Alert.alert("Saved", "User information has been saved locally.");
   };
 
   return (
@@ -63,8 +93,16 @@ const UserInfo = () => {
         <Text style={styles.label}>FULL NAME</Text>
         <View style={styles.inputWrapper}>
           <Ionicons name="person-outline" size={hp("2%")} color="#8A94A6" />
-          <TextInput placeholder="e.g. Sarah Connor" style={styles.input} />
+          <TextInput
+            placeholder="e.g. Sarah Connor"
+            style={styles.input}
+            value={fullName}
+            onChangeText={setFullName}
+          />
         </View>
+        {errors.fullName ? (
+          <Text style={styles.errorText}>{errors.fullName}</Text>
+        ) : null}
 
         {/* Email */}
         <Text style={styles.label}>EMAIL ADDRESS</Text>
@@ -75,8 +113,13 @@ const UserInfo = () => {
             keyboardType="email-address"
             autoCapitalize="none"
             style={styles.input}
+            value={email}
+            onChangeText={setEmail}
           />
         </View>
+        {errors.email ? (
+          <Text style={styles.errorText}>{errors.email}</Text>
+        ) : null}
 
         {/* Phone */}
         <Text style={styles.label}>MOBILE NUMBER</Text>
@@ -86,8 +129,13 @@ const UserInfo = () => {
             placeholder="+1 (555) 000-0000"
             keyboardType="phone-pad"
             style={styles.input}
+            value={mobileNumber}
+            onChangeText={setMobileNumber}
           />
         </View>
+        {errors.mobileNumber ? (
+          <Text style={styles.errorText}>{errors.mobileNumber}</Text>
+        ) : null}
 
         <Text style={styles.helperText}>
           {"We'll send a code to verify this number"}
@@ -121,6 +169,14 @@ const UserInfo = () => {
             <Text style={styles.roleText}>Helper</Text>
           </TouchableOpacity>
         </View>
+
+        {errors.role ? (
+          <Text style={styles.errorText}>{errors.role}</Text>
+        ) : null}
+
+        <TouchableOpacity style={styles.primaryBtn} onPress={handleContinue}>
+          <Text style={styles.primaryText}>Continue</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -167,8 +223,8 @@ const styles = StyleSheet.create({
   },
 
   avatarImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderRadius: 100,
   },
 
@@ -221,6 +277,12 @@ const styles = StyleSheet.create({
     marginTop: hp("0.8%"),
   },
 
+  errorText: {
+    color: "#D64545",
+    fontSize: hp("1.3%"),
+    marginTop: hp("0.6%"),
+  },
+
   roleWrapper: {
     flexDirection: "row",
     gap: wp("4%"),
@@ -253,6 +315,7 @@ const styles = StyleSheet.create({
     paddingVertical: hp("1.8%"),
     borderRadius: hp("1.2%"),
     alignItems: "center",
+    marginTop: hp("2.5%"),
   },
 
   primaryText: {
