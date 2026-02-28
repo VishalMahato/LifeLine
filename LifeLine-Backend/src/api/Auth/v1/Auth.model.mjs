@@ -127,8 +127,6 @@ const authSchema = new mongoose.Schema(
 );
 
 // Indexes for performance
-authSchema.index({ email: 1 }, { unique: true });
-authSchema.index({ phoneNumber: 1 }, { unique: true });
 authSchema.index({ emailVerificationToken: 1 });
 authSchema.index({ passwordResetToken: 1 });
 authSchema.index({ role: 1 });
@@ -265,4 +263,3 @@ authSchema.statics = {
 const Auth = mongoose.model('Auth', authSchema);
 
 export default Auth;
-

@@ -318,8 +318,6 @@ const medicalSchema = new mongoose.Schema(
 );
 
 // Indexes
-medicalSchema.index({ userId: 1 });
-medicalSchema.index({ bloodType: 1 });
 medicalSchema.index({
   'bloodDonation.willingToDonate': 1,
   'bloodDonation.isEligible': 1,
