@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { useNavigation } from '@react-navigation/native'
-import React from 'react'
+import * as Location from 'expo-location'
+import React, { useState } from 'react'
 import {
-  Image,
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,9 +14,82 @@ import {
   heightPercentageToDP as hp,
   widthPercentageToDP as wp,
 } from 'react-native-responsive-screen'
+import UniversalMap from '@/src/features/auth/screens/UniversalMap'
+
+type AddressState = {
+  street: string
+  city: string
+  state: string
+  zip: string
+  landmark: string
+}
+
+type GeoState = {
+  latitude: number
+  longitude: number
+}
+
+const DEFAULT_ADDRESS: AddressState = {
+  street: '123 Maple Street',
+  city: 'Springfield',
+  state: 'IL',
+  zip: '62704',
+  landmark: 'Red door, across from Oak Park',
+}
+
+const DEFAULT_GEO: GeoState = {
+  latitude: 37.7749,
+  longitude: -122.4194,
+}
 
 export default function SavedAddress() {
   const navigation = useNavigation<any>()
+
+  const [address, setAddress] = useState<AddressState>(DEFAULT_ADDRESS)
+  const [geo, setGeo] = useState<GeoState>(DEFAULT_GEO)
+  const [isUpdatingLocation, setIsUpdatingLocation] = useState(false)
+  const [locationError, setLocationError] = useState<string | null>(null)
+
+  const getLocation = async () => {
+    setLocationError(null)
+    setIsUpdatingLocation(true)
+
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync()
+      if (status !== 'granted') {
+        setLocationError('Location permission was denied.')
+        return
+      }
+
+      const current = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      })
+
+      const latitude = current.coords.latitude
+      const longitude = current.coords.longitude
+      setGeo({ latitude, longitude })
+
+      const [resolvedAddress] = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude,
+      })
+
+      setAddress((prev) => ({
+        street: resolvedAddress?.street || resolvedAddress?.name || resolvedAddress?.formattedAddress || prev.street,
+        city: resolvedAddress?.city || prev.city,
+        state: resolvedAddress?.region || prev.state,
+        zip: resolvedAddress?.postalCode || prev.zip,
+        landmark: resolvedAddress?.district
+          || resolvedAddress?.subregion
+          || 'Updated from current GPS location',
+      }))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to fetch current location.'
+      setLocationError(message)
+    } finally {
+      setIsUpdatingLocation(false)
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -33,38 +107,52 @@ export default function SavedAddress() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.contentContainer}>
         <View style={styles.mapCard}>
-          <Image
-            source={{ uri: 'https://maps.gstatic.com/tactile/basepage/pegman_sherlock.png' }}
-            style={styles.mapImage}
-          />
+          <UniversalMap latitude={geo.latitude} longitude={geo.longitude} />
 
-          <TouchableOpacity style={styles.locationBtn}>
-            <Ionicons name="locate" size={18} color="#1E73E8" />
-            <Text style={styles.locationText}>Update Current Location</Text>
+          <TouchableOpacity
+            style={styles.locationBtn}
+            onPress={getLocation}
+            disabled={isUpdatingLocation}
+          >
+            {isUpdatingLocation ? (
+              <ActivityIndicator size="small" color="#1E73E8" />
+            ) : (
+              <Ionicons name="locate" size={18} color="#1E73E8" />
+            )}
+            <Text style={styles.locationText}>
+              {isUpdatingLocation ? 'Updating location...' : 'Update Current Location'}
+            </Text>
           </TouchableOpacity>
         </View>
 
+        {locationError ? (
+          <View style={styles.errorBanner}>
+            <Ionicons name="alert-circle" size={16} color="#B3261E" />
+            <Text style={styles.errorText}>{locationError}</Text>
+          </View>
+        ) : null}
+
         <View style={styles.card}>
-          <LabelValue label="Street Address" value="123 Maple Street" />
+          <LabelValue label="Street Address" value={address.street} />
 
           <View style={styles.rowSplit}>
             <View style={styles.half}>
-              <LabelValue label="City" value="Springfield" />
+              <LabelValue label="City" value={address.city} />
             </View>
             <View style={[styles.half, styles.dividerLeft]}>
-              <LabelValue label="State" value="IL" />
+              <LabelValue label="State" value={address.state} />
             </View>
           </View>
 
-          <LabelValue label="ZIP Code" value="62704" />
-          <LabelValue label="Landmark" value="Red door, across from Oak Park" />
+          <LabelValue label="ZIP Code" value={address.zip} />
+          <LabelValue label="Landmark" value={address.landmark} />
 
           <View style={styles.notesSection}>
             <View style={styles.notesHeader}>
-              <Text style={styles.notesTitle}>EMERGENCY ACCESS NOTES</Text>
+              <Text style={styles.notesTitle}>GPS COORDINATES</Text>
             </View>
             <Text style={styles.notesText}>
-              Gate code is 5678. Beware of small dog in the backyard. Lockbox on side porch.
+              {geo.latitude.toFixed(6)}, {geo.longitude.toFixed(6)}
             </Text>
           </View>
         </View>
@@ -137,11 +225,6 @@ const styles = StyleSheet.create({
     marginBottom: hp('3%'),
     elevation: 4,
   },
-  mapImage: {
-    width: '100%',
-    height: hp('20%'),
-    borderRadius: 14,
-  },
   locationBtn: {
     position: 'absolute',
     bottom: -hp('2%'),
@@ -158,6 +241,23 @@ const styles = StyleSheet.create({
     marginLeft: wp('2%'),
     color: '#1E73E8',
     fontWeight: '600',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FBCACA',
+    backgroundColor: '#FEECEC',
+    borderRadius: 12,
+    paddingHorizontal: wp('3%'),
+    paddingVertical: hp('1.2%'),
+    marginBottom: hp('2%'),
+  },
+  errorText: {
+    marginLeft: wp('2%'),
+    color: '#B3261E',
+    fontSize: hp('1.45%'),
+    flex: 1,
   },
   card: {
     backgroundColor: '#FFFFFF',

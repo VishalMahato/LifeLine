@@ -1,5 +1,4 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { useNavigation } from '@react-navigation/native'
 import { router } from 'expo-router'
 import React from 'react'
 import {
@@ -14,6 +13,7 @@ import {
   heightPercentageToDP as hp,
   widthPercentageToDP as wp,
 } from 'react-native-responsive-screen'
+import { useAppSelector } from '@/src/core/store'
 
 type ProfileItem = {
   icon: string
@@ -46,18 +46,23 @@ function ItemCard({ item }: ItemCardProps) {
 }
 
 export default function Profile() {
-  const navigation = useNavigation<any>()
+  const { userData, userId, authId } = useAppSelector((state) => state.auth)
+
+  const displayName = userData?.fullName?.trim() || 'Alex Johnson'
+  const displayPhone = userData?.mobileNumber?.trim() || '+1 555-0123'
+  const displayProfileImage = userData?.profileImage?.trim() || 'https://i.pravatar.cc/200?img=32'
+  const medicalLookupId = userId || authId || '25'
 
   const personalInfoItems: ProfileItem[] = [
     {
       icon: 'person',
       title: 'Account Details',
-      onPress: () => navigation.navigate('AccountDetails'),
+      onPress: () => router.push('/User/Profile/AccountDetails'),
     },
     {
       icon: 'location',
       title: 'Saved Addresses',
-      onPress: () => navigation.navigate('SavedAddress'),
+      onPress: () => router.push('/User/Profile/SavedAddress'),
     },
   ]
 
@@ -68,7 +73,7 @@ export default function Profile() {
       onPress: () =>
         router.push({
           pathname: '/(global)/MedicalProfile/[medical_Id]',
-          params: { medical_Id: '25' },
+          params: { medical_Id: medicalLookupId },
         }),
     },
     { icon: 'people', title: 'Emergency Contacts' },
@@ -79,7 +84,7 @@ export default function Profile() {
       icon: 'time',
       title: 'Emergency History',
       subtitle: '2 active alerts last month',
-      onPress: () => navigation.navigate('History'),
+      onPress: () => router.push('/User/Profile/History'),
     },
   ]
 
@@ -88,7 +93,7 @@ export default function Profile() {
       <View style={styles.header}>
         <View style={styles.avatarWrapper}>
           <Image
-            source={{ uri: 'https://i.pravatar.cc/200?img=32' }}
+            source={{ uri: displayProfileImage }}
             style={styles.avatar}
           />
           <View style={styles.verifiedIcon}>
@@ -96,8 +101,8 @@ export default function Profile() {
           </View>
         </View>
 
-        <Text style={styles.name}>Alex Johnson</Text>
-        <Text style={styles.phone}>+1 555-0123</Text>
+        <Text style={styles.name}>{displayName}</Text>
+        <Text style={styles.phone}>{displayPhone}</Text>
 
         <View style={styles.verifiedBadge}>
           <Ionicons name="shield-checkmark" size={hp('1.8%')} color="#1E73E8" />
