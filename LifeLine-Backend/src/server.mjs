@@ -18,6 +18,7 @@ const runtimeDir = path.dirname(fileURLToPath(import.meta.url));
 
 // Initialize Express app
 const app = express();
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(
