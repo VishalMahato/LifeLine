@@ -5,6 +5,7 @@ import UserService from '../src/api/User/User.service.mjs';
 import MedicalService from '../src/api/Medical/Medical.service.mjs';
 import LocationService from '../src/api/Location/Location.service.mjs';
 import EmergencyService from '../src/api/Emergency/Emergency.service.mjs';
+import AuthService from '../src/api/Auth/v1/Auth.service.mjs';
 
 test('HelperService exports expected methods', () => {
   assert.equal(typeof HelperService.createHelper, 'function');
@@ -30,4 +31,8 @@ test('EmergencyService exports expected methods', () => {
   assert.equal(typeof EmergencyService.createEmergency, 'function');
   assert.equal(typeof EmergencyService.triggerSOS, 'function');
   assert.equal(typeof EmergencyService.getEmergency, 'function');
+});
+
+test('AuthService exports expected methods', () => {
+  assert.equal(typeof AuthService.getUserById, 'function');
 });

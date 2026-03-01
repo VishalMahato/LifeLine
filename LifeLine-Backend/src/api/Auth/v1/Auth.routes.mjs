@@ -170,6 +170,13 @@ class AuthRoutes {
       AuthController.checkEmail,
     );
 
+    // Get user by auth ID
+    this.router.get(
+      '/getUserById/:id',
+      AuthValidator.validateUserId,
+      AuthController.getUserById,
+    );
+
     // Login
     this.router.post('/login', AuthValidator.validateLogin, AuthController.login);
 
