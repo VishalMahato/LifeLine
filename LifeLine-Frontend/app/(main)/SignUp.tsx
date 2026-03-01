@@ -25,6 +25,7 @@ import {
   createUserAuth,
   updateSignupEmergencyContacts,
 } from "@/src/features/auth/authSlice";
+import { createLocation } from "@/src/features/auth/locationSlice";
 import { useAppDispatch, useAppSelector } from "@/src/core/store";
 
 const userSignUpSteps = [
@@ -63,8 +64,11 @@ const helperSignUpSteps = [
 
 const SignUp = () => {
   const dispatch = useAppDispatch();
-  const { isLoading, userData, authId } = useAppSelector((state) => state.auth);
+  const { isLoading, userData, authId, userId } = useAppSelector((state) => state.auth);
   const isSavingMedical = useAppSelector((state) => state.medical.isSaving);
+  const { isLoading: isSavingLocation, locations } = useAppSelector(
+    (state) => state.location,
+  );
   const [currentRole, setCurrentRole] = React.useState<
     "user" | "helper" | null
   >(userData?.role || null);
@@ -76,6 +80,7 @@ const SignUp = () => {
   const currentSteps =
     currentRole === "helper" ? helperSignUpSteps : userSignUpSteps;
   const isLastStep = currentStep === currentSteps.length - 1;
+  const hasExistingLocation = locations.length > 0;
 
   const goToNextStep = () => {
     setCurrentStep((prevStep) => prevStep + 1);
@@ -104,7 +109,21 @@ const SignUp = () => {
     ).unwrap();
   };
 
-  const handleSecureLocationSubmit = async (_payload: SecureLocationPayload) => {
+  const handleSecureLocationSubmit = async (payload: SecureLocationPayload) => {
+    const profileId = userId || authId;
+    if (!profileId) {
+      throw new Error("Signup session was not found. Please restart signup.");
+    }
+
+    if (!hasExistingLocation) {
+      await dispatch(
+        createLocation({
+          ...payload,
+          userId: profileId,
+        }),
+      ).unwrap();
+    }
+
     const nextRoute =
       currentRole === "helper" ? "/HelperAccountReady" : "/AccountReady";
     router.replace(nextRoute as "/HelperAccountReady" | "/AccountReady");
@@ -197,10 +216,10 @@ const SignUp = () => {
         <TouchableOpacity
           style={[styles.nextBtn, currentStep === 0 && styles.nextBtnFull]}
           onPress={handleNext}
-          disabled={isLoading || isSavingMedical}
+          disabled={isLoading || isSavingMedical || isSavingLocation}
         >
           <Text style={styles.nextText}>
-            {((currentStep === 0 && isLoading) || isSavingMedical)
+            {((currentStep === 0 && isLoading) || isSavingMedical || isSavingLocation)
               ? "Saving..."
               : isLastStep
                 ? "Finish Setup →"

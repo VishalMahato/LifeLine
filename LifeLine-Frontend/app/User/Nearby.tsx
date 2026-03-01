@@ -1,9 +1,11 @@
+import apiClient, { API_ENDPOINTS } from "@/src/config/api";
+import UniversalMap from "@/src/features/auth/screens/UniversalMap";
 import { openURL } from "expo-linking";
 import * as Location from "expo-location";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Image,
-  Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,15 +13,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   heightPercentageToDP as hp,
   widthPercentageToDP as wp,
 } from "react-native-responsive-screen";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { WebView } from "react-native-webview";
 
-// Interfaces for type safety
-interface Helper {
+type Helper = {
   id: string;
   name: string;
   role: string;
@@ -31,9 +31,9 @@ interface Helper {
   latitude: number;
   longitude: number;
   phone: string;
-}
+};
 
-interface NGO {
+type NGO = {
   id: string;
   name: string;
   services: string;
@@ -42,12 +42,20 @@ interface NGO {
   latitude: number;
   longitude: number;
   phone: string;
-}
+};
 
-// Mock data (replace with props or API calls)
-const mockHelpers: Helper[] = [
+type NearbyLocationResponse = {
+  id: string;
+  coordinates?: [number, number];
+  helperName?: string;
+  helperImage?: string;
+  placeType?: string;
+  address?: string;
+};
+
+const FALLBACK_HELPERS: Helper[] = [
   {
-    id: "1",
+    id: "fallback-1",
     name: "Dr. Sarah Jenkins",
     role: "Cardiologist",
     degree: "MD",
@@ -59,38 +67,11 @@ const mockHelpers: Helper[] = [
     longitude: 77.209,
     phone: "+1234567890",
   },
-  {
-    id: "2",
-    name: "Dr. Michael Lee",
-    role: "Emergency Physician",
-    degree: "MD",
-    distance: "1.2 km",
-    responseRate: "95%",
-    avatar: "https://i.pravatar.cc/150?img=13",
-    verified: true,
-    latitude: 19.076,
-    longitude: 72.8777,
-    phone: "+1987654321",
-  },
-
-  {
-    id: "3",
-    name: "Abhishek Kumar",
-    role: "Developer",
-    degree: "MCA",
-    distance: "2.8 km",
-    responseRate: "95%",
-    avatar: "https://i.pravatar.cc/150?img=17",
-    verified: false,
-    latitude: 19.076,
-    longitude: 72.8777,
-    phone: "+1987654321",
-  },
 ];
 
-const mockNGOs: NGO[] = [
+const FALLBACK_NGOS: NGO[] = [
   {
-    id: "1",
+    id: "ngo-1",
     name: "Red Cross Response",
     services: "Emergency Shelter & First Aid",
     status: "OPEN 24/7",
@@ -99,276 +80,269 @@ const mockNGOs: NGO[] = [
     longitude: -74.006,
     phone: "+1555123456",
   },
-  {
-    id: "2",
-    name: "Green Aid Network",
-    services: "Medical Supplies & Ambulance",
-    status: "OPEN 24/7",
-    distance: "3.1 km",
-    latitude: 51.5074,
-    longitude: -0.1278,
-    phone: "+447700900000",
-  },
-  {
-    id: "3",
-    name: "Blue Shield Relief",
-    services: "Disaster Response & Care",
-    status: "OPEN 24/7",
-    distance: "4.0 km",
-    latitude: 35.6762,
-    longitude: 139.6503,
-    phone: "+81312345678",
-  },
 ];
 
-// Sub-components for cleaner code
-const Header: React.FC = () => (
-  <View style={styles.header}>
-    <Text style={styles.title}>Nearby</Text>
-    <Ionicons name="options-outline" size={hp("2.6%")} />
-  </View>
-);
+const formatDistance = (distance: number | undefined) => {
+  if (!Number.isFinite(distance)) {
+    return "Nearby";
+  }
+  const safeDistance = distance as number;
 
-const Tabs: React.FC<{
-  activeTab: "helpers" | "ngos";
-  setActiveTab: (tab: "helpers" | "ngos") => void;
-}> = ({ activeTab, setActiveTab }) => (
-  <View style={styles.tabs}>
-    <TouchableOpacity
-      style={[styles.tab, activeTab === "helpers" && styles.activeTab]}
-      onPress={() => setActiveTab("helpers")}
-    >
-      <Text
-        style={[
-          styles.tabText,
-          activeTab === "helpers" && styles.activeTabText,
-        ]}
-      >
-        Helpers
-      </Text>
-    </TouchableOpacity>
-    <TouchableOpacity
-      style={[styles.tab, activeTab === "ngos" && styles.activeTab]}
-      onPress={() => setActiveTab("ngos")}
-    >
-      <Text
-        style={[styles.tabText, activeTab === "ngos" && styles.activeTabText]}
-      >
-        NGOs
-      </Text>
-    </TouchableOpacity>
-  </View>
-);
+  if (safeDistance < 1) {
+    return `${Math.round(safeDistance * 1000)} m`;
+  }
 
-const SearchBar: React.FC = () => (
-  <View style={styles.searchWrapper}>
-    <Ionicons name="search-outline" size={hp("2%")} color="#9CA3AF" />
-    <TextInput
-      placeholder="Search by name or role..."
-      style={styles.searchInput}
-    />
-  </View>
-);
+  return `${safeDistance.toFixed(1)} km`;
+};
 
-const MapPreview: React.FC = () => {
-  const [location, setLocation] = useState<Location.LocationObject | null>(
-    null,
-  );
-  const [htmlContent, setHtmlContent] = useState("");
+const mapHelper = (raw: NearbyLocationResponse): Helper | null => {
+  if (!Array.isArray(raw.coordinates) || raw.coordinates.length !== 2) {
+    return null;
+  }
 
-  useEffect(() => {
-    (async () => {
+  return {
+    id: raw.id,
+    name: raw.helperName || "Qualified Helper",
+    role: "Emergency Helper",
+    degree: raw.placeType || "Certified",
+    distance: formatDistance(undefined),
+    responseRate: "90%+",
+    avatar: raw.helperImage || `https://i.pravatar.cc/150?u=${raw.id}`,
+    verified: true,
+    latitude: raw.coordinates[1],
+    longitude: raw.coordinates[0],
+    phone: "+1234567890",
+  };
+};
+
+const mapNgo = (raw: NearbyLocationResponse): NGO | null => {
+  if (!Array.isArray(raw.coordinates) || raw.coordinates.length !== 2) {
+    return null;
+  }
+
+  const placeType = raw.placeType?.toLowerCase();
+  if (placeType !== "ngo" && placeType !== "hospital") {
+    return null;
+  }
+
+  return {
+    id: raw.id,
+    name: raw.address || "Relief Center",
+    services: placeType === "hospital" ? "Emergency Medical" : "Disaster Relief",
+    status: "OPEN 24/7",
+    distance: "Nearby",
+    latitude: raw.coordinates[1],
+    longitude: raw.coordinates[0],
+    phone: "+1234567890",
+  };
+};
+
+const NearbyScreen: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<"helpers" | "ngos">("helpers");
+  const [helpers, setHelpers] = useState<Helper[]>(FALLBACK_HELPERS);
+  const [ngos, setNgos] = useState<NGO[]>(FALLBACK_NGOS);
+  const [currentCoords, setCurrentCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchNearby = useCallback(async () => {
+    setLoading(true);
+    try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") return;
+      if (status !== "granted") {
+        return;
+      }
 
-      const currentLocation = await Location.getCurrentPositionAsync({});
-      setLocation(currentLocation);
-    })();
+      const current = await Location.getCurrentPositionAsync({});
+      const lat = current.coords.latitude;
+      const lng = current.coords.longitude;
+      setCurrentCoords({ latitude: lat, longitude: lng });
+
+      const [helpersRes, nearbyRes] = await Promise.all([
+        apiClient.get<{ success: boolean; data: NearbyLocationResponse[] }>(
+          API_ENDPOINTS.LOCATION.NEARBY_HELPERS,
+          { params: { lat, lng, radius: 10 } },
+        ),
+        apiClient.get<{ success: boolean; data: NearbyLocationResponse[] }>(
+          API_ENDPOINTS.LOCATION.NEARBY_SEARCH,
+          { params: { lat, lng, radius: 10 } },
+        ),
+      ]);
+
+      if (helpersRes.data.success && Array.isArray(helpersRes.data.data)) {
+        const mappedHelpers = helpersRes.data.data
+          .map(mapHelper)
+          .filter((item): item is Helper => item !== null);
+        if (mappedHelpers.length > 0) {
+          setHelpers(mappedHelpers);
+        }
+      }
+
+      if (nearbyRes.data.success && Array.isArray(nearbyRes.data.data)) {
+        const mappedNgos = nearbyRes.data.data
+          .map(mapNgo)
+          .filter((item): item is NGO => item !== null);
+        if (mappedNgos.length > 0) {
+          setNgos(mappedNgos);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch nearby data", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    const defaultLocation = { latitude: 51.505, longitude: -0.09 };
-    const currentLat = location?.coords.latitude ?? defaultLocation.latitude;
-    const currentLng = location?.coords.longitude ?? defaultLocation.longitude;
+    void fetchNearby();
+  }, [fetchNearby]);
 
-    const helperMarkers = mockHelpers
-      .map(
-        (helper) =>
-          `L.marker([${helper.latitude}, ${helper.longitude}]).addTo(map).bindPopup('${helper.name}');`,
-      )
-      .join("");
-    const ngoMarkers = mockNGOs
-      .map(
-        (ngo) =>
-          `L.marker([${ngo.latitude}, ${ngo.longitude}]).addTo(map).bindPopup('${ngo.name}');`,
-      )
-      .join("");
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-        <style>
-          html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
-          #map { width: 100%; height: 100%; }
-        </style>
-      </head>
-      <body>
-        <div id="map"></div>
-        <script>
-          const map = L.map('map').setView([${currentLat}, ${currentLng}], 13);
-          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-          }).addTo(map);
-          L.marker([${currentLat}, ${currentLng}]).addTo(map).bindPopup('Your Location').openPopup();
-          ${helperMarkers}
-          ${ngoMarkers}
-        </script>
-      </body>
-      </html>
-    `;
-
-    setHtmlContent(html);
-  }, [location]);
-
-  return (
-    <View style={styles.mapCard}>
-      {Platform.OS === "web" ? (
-        <View style={styles.mapUnavailable}>
-          <Text style={styles.mapUnavailableText}>
-            Map preview is not available on web.
-          </Text>
-        </View>
-      ) : (
-        <WebView
-          source={{ html: htmlContent }}
-          style={styles.map}
-          javaScriptEnabled
-          domStorageEnabled
-        />
-      )}
-      <View style={styles.liveBadge}>
-        <View style={styles.liveDot} />
-        <Text style={styles.liveText}>LIVE VIEW ENABLED</Text>
-      </View>
-    </View>
+  const mapMarkers = useMemo(
+    () => [
+      ...helpers.map((helper) => ({
+        latitude: helper.latitude,
+        longitude: helper.longitude,
+        title: helper.name,
+        type: "helper" as const,
+      })),
+      ...ngos.map((ngo) => ({
+        latitude: ngo.latitude,
+        longitude: ngo.longitude,
+        title: ngo.name,
+        type: "ngo" as const,
+      })),
+    ],
+    [helpers, ngos],
   );
-};
-
-const HelperCard: React.FC<{ helper: Helper }> = ({ helper }) => (
-  <View style={styles.card}>
-    <View style={styles.cardHeader}>
-      <Image source={{ uri: helper.avatar }} style={styles.avatar} />
-      <View style={styles.cardContent}>
-        <View style={styles.nameRow}>
-          <Text style={styles.name}>{helper.name}</Text>
-          {helper.verified && (
-            <Ionicons name="checkmark-circle" size={hp("2%")} color="#1E73E8" />
-          )}
-        </View>
-        <Text style={styles.subText}>
-          {helper.role} • {helper.degree}
-        </Text>
-        <Text style={styles.meta}>
-          {helper.distance} • {helper.responseRate} response rate
-        </Text>
-      </View>
-    </View>
-    <View style={styles.actionRow}>
-      <TouchableOpacity
-        style={styles.primaryBtn}
-        onPress={() => openURL(`tel:${helper.phone}`)}
-      >
-        <Text style={styles.primaryText}>Call Now</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.secondaryBtn}
-        onPress={() =>
-          openURL(
-            `https://www.google.com/maps/dir/?api=1&destination=${helper.latitude},${helper.longitude}&travelmode=driving&dir_action=navigate`,
-          )
-        }
-      >
-        <Text style={styles.secondaryText}>Navigate</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-);
-
-const NGOCard: React.FC<{ ngo: NGO }> = ({ ngo }) => (
-  <View style={styles.card}>
-    <View style={styles.cardHeader}>
-      <View style={styles.ngoIcon}>
-        <Ionicons name="medkit" size={hp("2.5%")} color="#EF4444" />
-      </View>
-      <View style={styles.cardContent}>
-        <Text style={styles.name}>{ngo.name}</Text>
-        <Text style={styles.subText}>{ngo.services}</Text>
-        <Text style={styles.meta}>
-          {ngo.status} • {ngo.distance}
-        </Text>
-      </View>
-    </View>
-    <View style={styles.actionRow}>
-      <TouchableOpacity
-        style={styles.primaryBtn}
-        onPress={() => openURL(`tel:${ngo.phone}`)}
-      >
-        <Text style={styles.primaryText}>Call Now</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.secondaryBtn}
-        onPress={() =>
-          openURL(
-            `https://www.google.com/maps/dir/?api=1&destination=${ngo.latitude},${ngo.longitude}&travelmode=driving&dir_action=navigate`,
-          )
-        }
-      >
-        <Text style={styles.secondaryText}>Navigate</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-);
-
-// Main Component
-const NearbyScreen: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"helpers" | "ngos">("helpers");
 
   return (
     <ScrollView
       style={styles.container}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingBottom: hp("5%") }}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void fetchNearby()} />}
     >
-      <Header />
-      <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
-      <SearchBar />
-      <MapPreview />
+      <View style={styles.header}>
+        <Text style={styles.title}>Nearby</Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => void fetchNearby()} disabled={loading}>
+            <Ionicons name={loading ? "sync" : "refresh-outline"} size={hp("2.4%")} color="#1E73E8" />
+          </TouchableOpacity>
+          <Ionicons name="options-outline" size={hp("2.4%") as number} color="#374151" />
+        </View>
+      </View>
+
+      <View style={styles.tabs}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "helpers" && styles.activeTab]}
+          onPress={() => setActiveTab("helpers")}
+        >
+          <Text style={[styles.tabText, activeTab === "helpers" && styles.activeTabText]}>
+            Helpers
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "ngos" && styles.activeTab]}
+          onPress={() => setActiveTab("ngos")}
+        >
+          <Text style={[styles.tabText, activeTab === "ngos" && styles.activeTabText]}>NGOs</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.searchWrapper}>
+        <Ionicons name="search-outline" size={hp("2%") as number} color="#9CA3AF" />
+        <TextInput placeholder="Search by name or role..." style={styles.searchInput} />
+      </View>
+
+      <View style={styles.mapCard}>
+        <UniversalMap
+          latitude={currentCoords?.latitude}
+          longitude={currentCoords?.longitude}
+          markers={mapMarkers}
+        />
+        <View style={styles.liveBadge}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>LIVE VIEW ENABLED</Text>
+        </View>
+      </View>
 
       {activeTab === "helpers" && (
         <View style={{ marginBottom: hp("5%") }}>
-          <Text style={styles.sectionTitle}>
-            AVAILABLE NOW ({mockHelpers.length})
-          </Text>
-          {mockHelpers.map((helper) => (
-            <HelperCard key={helper.id} helper={helper} />
+          <Text style={styles.sectionTitle}>AVAILABLE NOW ({helpers.length})</Text>
+          {helpers.map((helper) => (
+            <View key={helper.id} style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Image source={{ uri: helper.avatar }} style={styles.avatar} />
+                <View style={styles.cardContent}>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.name}>{helper.name}</Text>
+                    {helper.verified && (
+                      <Ionicons name="checkmark-circle" size={hp("2%") as number} color="#1E73E8" />
+                    )}
+                  </View>
+                  <Text style={styles.subText}>{helper.role} • {helper.degree}</Text>
+                  <Text style={styles.meta}>{helper.distance} • {helper.responseRate} response rate</Text>
+                </View>
+              </View>
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={styles.primaryBtn}
+                  onPress={() => openURL(`tel:${helper.phone}`)}
+                >
+                  <Text style={styles.primaryText}>Call Now</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.secondaryBtn}
+                  onPress={() =>
+                    openURL(
+                      `https://www.google.com/maps/dir/?api=1&destination=${helper.latitude},${helper.longitude}&travelmode=driving&dir_action=navigate`,
+                    )
+                  }
+                >
+                  <Text style={styles.secondaryText}>Navigate</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           ))}
         </View>
       )}
 
       {activeTab === "ngos" && (
-        <View style={{ paddingBottom: hp("5%") }}>
+        <View style={{ marginBottom: hp("5%") }}>
           <View style={styles.ngoHeader}>
-            <Text style={styles.sectionTitle}>
-              ACTIVE NGO RELIEF ({mockNGOs.length})
-            </Text>
+            <Text style={styles.sectionTitle}>ACTIVE NGO RELIEF ({ngos.length})</Text>
             <Text style={styles.seeAll}>See All NGOs</Text>
           </View>
-          {mockNGOs.map((ngo) => (
-            <NGOCard key={ngo.id} ngo={ngo} />
+          {ngos.map((ngo) => (
+            <View key={ngo.id} style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.ngoIcon}>
+                  <Ionicons name="medkit" size={hp("2.5%") as number} color="#EF4444" />
+                </View>
+                <View style={styles.cardContent}>
+                  <Text style={styles.name}>{ngo.name}</Text>
+                  <Text style={styles.subText}>{ngo.services}</Text>
+                  <Text style={styles.meta}>{ngo.status} • {ngo.distance}</Text>
+                </View>
+              </View>
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={styles.primaryBtn}
+                  onPress={() => openURL(`tel:${ngo.phone}`)}
+                >
+                  <Text style={styles.primaryText}>Call Now</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.secondaryBtn}
+                  onPress={() =>
+                    openURL(
+                      `https://www.google.com/maps/dir/?api=1&destination=${ngo.latitude},${ngo.longitude}&travelmode=driving&dir_action=navigate`,
+                    )
+                  }
+                >
+                  <Text style={styles.secondaryText}>Navigate</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           ))}
         </View>
       )}
@@ -378,7 +352,6 @@ const NearbyScreen: React.FC = () => {
 
 export default NearbyScreen;
 
-// Updated Styles for better responsiveness and alignment
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -391,6 +364,11 @@ const styles = StyleSheet.create({
     marginBottom: hp("2%"),
     paddingHorizontal: wp("6%"),
     paddingTop: hp("4%"),
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: wp("3%"),
   },
   title: {
     fontSize: hp("2.6%"),
@@ -445,25 +423,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
     marginBottom: hp("2%"),
-    aspectRatio: 2, // Maintains a responsive 2:1 aspect ratio for the map
-    backgroundColor: "#E5E7EB", // Placeholder background
     marginHorizontal: wp("6%"),
-  },
-  map: {
-    width: "100%",
-    height: "100%",
-  },
-  mapUnavailable: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  mapUnavailableText: {
-    color: "#DC2626",
-    fontSize: hp("1.8%"),
-    fontWeight: "600",
-    textAlign: "center",
-    paddingHorizontal: wp("4%"),
+    backgroundColor: "#E5E7EB",
   },
   liveBadge: {
     position: "absolute",
@@ -498,6 +459,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#6B7280",
     marginVertical: hp("1.5%"),
+    marginHorizontal: wp("6%"),
   },
   card: {
     backgroundColor: "#fff",
@@ -522,77 +484,75 @@ const styles = StyleSheet.create({
     borderRadius: hp("3%"),
     marginRight: wp("3%"),
   },
+  ngoIcon: {
+    width: hp("6%"),
+    height: hp("6%"),
+    borderRadius: hp("1.5%"),
+    backgroundColor: "#FEE2E2",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: wp("3%"),
+  },
   cardContent: {
     flex: 1,
   },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: hp("0.5%"),
+    gap: wp("1.5%"),
+    marginBottom: hp("0.3%"),
   },
   name: {
-    fontSize: hp("2%"),
+    fontSize: hp("1.9%"),
     fontWeight: "700",
     color: "#111827",
   },
   subText: {
-    fontSize: hp("1.6%"),
+    fontSize: hp("1.5%"),
     color: "#6B7280",
-    marginBottom: hp("0.5%"),
+    marginBottom: hp("0.4%"),
   },
   meta: {
-    fontSize: hp("1.4%"),
+    fontSize: hp("1.3%"),
     color: "#9CA3AF",
   },
   actionRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: wp("3%"),
   },
   primaryBtn: {
-    backgroundColor: "#1E73E8",
-    paddingVertical: hp("1.2%"),
-    paddingHorizontal: wp("6%"),
-    borderRadius: 10,
     flex: 1,
-    marginRight: wp("2%"),
+    backgroundColor: "#1E73E8",
+    borderRadius: 10,
+    paddingVertical: hp("1.3%"),
     alignItems: "center",
   },
   primaryText: {
     color: "#fff",
-    fontWeight: "600",
+    fontWeight: "700",
     fontSize: hp("1.6%"),
   },
   secondaryBtn: {
-    backgroundColor: "#E5E7EB",
-    paddingVertical: hp("1.2%"),
-    paddingHorizontal: wp("6%"),
-    borderRadius: 10,
     flex: 1,
-    marginLeft: wp("2%"),
+    backgroundColor: "#E5E7EB",
+    borderRadius: 10,
+    paddingVertical: hp("1.3%"),
     alignItems: "center",
   },
   secondaryText: {
-    fontWeight: "600",
-    fontSize: hp("1.6%"),
     color: "#374151",
-  },
-  ngoIcon: {
-    width: hp("6%"),
-    height: hp("6%"),
-    borderRadius: 12,
-    backgroundColor: "#FEE2E2",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: wp("3%"),
+    fontWeight: "700",
+    fontSize: hp("1.6%"),
   },
   ngoHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginHorizontal: wp("6%"),
   },
   seeAll: {
     color: "#1E73E8",
     fontWeight: "600",
-    fontSize: hp("1.6%"),
+    fontSize: hp("1.4%"),
   },
 });
