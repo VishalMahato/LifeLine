@@ -1,285 +1,259 @@
 import LocationConstants from './Location.constants.mjs';
 
 /**
- * LocationUtils - Utility functions for Location module
- * @author Senior Software Engineer
- * @version 1.0.0
- * @since 2026
+ * LocationUtils - Utility helpers for Location module.
  */
 export default class LocationUtils {
-    /**
-     * Validate coordinates
-     * @param {number} lat - Latitude
-     * @param {number} lng - Longitude
-     * @returns {boolean}
-     */
-    static validateCoordinates(lat, lng) {
-        return lat >= LocationConstants.COORDINATES.MIN_LATITUDE &&
-               lat <= LocationConstants.COORDINATES.MAX_LATITUDE &&
-               lng >= LocationConstants.COORDINATES.MIN_LONGITUDE &&
-               lng <= LocationConstants.COORDINATES.MAX_LONGITUDE;
+  static validateCoordinates(lat, lng) {
+    return (
+      Number.isFinite(lat)
+      && Number.isFinite(lng)
+      && lat >= LocationConstants.COORDINATES.MIN_LATITUDE
+      && lat <= LocationConstants.COORDINATES.MAX_LATITUDE
+      && lng >= LocationConstants.COORDINATES.MIN_LONGITUDE
+      && lng <= LocationConstants.COORDINATES.MAX_LONGITUDE
+    );
+  }
+
+  static toRadians(degrees) {
+    return degrees * (Math.PI / 180);
+  }
+
+  static calculateDistance(coord1, coord2) {
+    const r = LocationConstants.SEARCH.EARTH_RADIUS_KM;
+    const dLat = this.toRadians(coord2.lat - coord1.lat);
+    const dLng = this.toRadians(coord2.lng - coord1.lng);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2)
+      + Math.cos(this.toRadians(coord1.lat))
+      * Math.cos(this.toRadians(coord2.lat))
+      * Math.sin(dLng / 2)
+      * Math.sin(dLng / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return r * c;
+  }
+
+  static composeAddress(data = {}) {
+    const segments = [
+      data.street,
+      data.city,
+      data.state,
+      data.zipCode,
+      data.country,
+    ]
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter(Boolean);
+
+    return segments.join(', ');
+  }
+
+  static sanitizeLocationData(locationData = {}) {
+    const sanitized = { ...locationData };
+
+    const stringFields = [
+      'address',
+      'street',
+      'city',
+      'state',
+      'country',
+      'zipCode',
+      'placeType',
+      'provider',
+      'buildingName',
+      'floor',
+      'apartmentUnit',
+      'landmark',
+      'emergencyAccessNotes',
+      'source',
+    ];
+
+    stringFields.forEach((field) => {
+      if (typeof sanitized[field] === 'string') {
+        sanitized[field] = sanitized[field].trim();
+      }
+    });
+
+    if (typeof sanitized.address === 'object' && sanitized.address !== null) {
+      const addr = sanitized.address;
+      sanitized.street = typeof addr.street === 'string' ? addr.street.trim() : sanitized.street;
+      sanitized.city = typeof addr.city === 'string' ? addr.city.trim() : sanitized.city;
+      sanitized.state = typeof addr.state === 'string' ? addr.state.trim() : sanitized.state;
+      sanitized.country = typeof addr.country === 'string' ? addr.country.trim() : sanitized.country;
+      sanitized.zipCode = typeof addr.postalCode === 'string'
+        ? addr.postalCode.trim()
+        : typeof addr.zipCode === 'string'
+          ? addr.zipCode.trim()
+          : sanitized.zipCode;
+      sanitized.address = this.composeAddress(sanitized);
     }
 
-    /**
-     * Validate location type
-     * @param {string} type - Location type
-     * @returns {boolean}
-     */
-    static validateLocationType(type) {
-        return Object.values(LocationConstants.LOCATION_TYPES).includes(type);
-    }
-
-    /**
-     * Calculate distance between two coordinates using Haversine formula
-     * @param {Object} coord1 - {lat, lng}
-     * @param {Object} coord2 - {lat, lng}
-     * @returns {number} Distance in kilometers
-     */
-    static calculateDistance(coord1, coord2) {
-        const R = LocationConstants.SEARCH.EARTH_RADIUS_KM;
-        const dLat = this.toRadians(coord2.lat - coord1.lat);
-        const dLng = this.toRadians(coord2.lng - coord1.lng);
-
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(this.toRadians(coord1.lat)) * Math.cos(this.toRadians(coord2.lat)) *
-                Math.sin(dLng/2) * Math.sin(dLng/2);
-
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c;
-    }
-
-    /**
-     * Convert degrees to radians
-     * @param {number} degrees
-     * @returns {number} Radians
-     */
-    static toRadians(degrees) {
-        return degrees * (Math.PI / 180);
-    }
-
-    /**
-     * Format location response for API
-     * @param {Object} location
-     * @returns {Object} Formatted location data
-     */
-    static formatLocationResponse(location) {
-        return {
-            id: location._id,
-            userId: location.userId,
-            type: location.type,
-            name: location.name,
-            coordinates: location.coordinates,
-            address: location.address,
-            buildingInfo: location.buildingInfo,
-            isVerified: location.isVerified,
-            accuracy: location.accuracy,
-            lastUpdated: location.lastUpdated,
-            createdAt: location.createdAt,
-            updatedAt: location.updatedAt
-        };
-    }
-
-    /**
-     * Sanitize location input data
-     * @param {Object} locationData
-     * @returns {Object} Sanitized data
-     */
-    static sanitizeLocationData(locationData) {
-        const sanitized = { ...locationData };
-
-        // Trim string fields
-        ['name', 'type'].forEach(field => {
-            if (sanitized[field]) {
-                sanitized[field] = sanitized[field].trim();
-            }
-        });
-
-        // Sanitize address
-        if (sanitized.address) {
-            sanitized.address = {
-                ...sanitized.address,
-                street: sanitized.address.street?.trim(),
-                city: sanitized.address.city?.trim(),
-                state: sanitized.address.state?.trim(),
-                country: sanitized.address.country?.trim(),
-                postalCode: sanitized.address.postalCode?.trim()
-            };
+    const numericFields = ['accuracy', 'altitude', 'altitudeAccuracy', 'speed', 'heading'];
+    numericFields.forEach((field) => {
+      if (sanitized[field] !== undefined && sanitized[field] !== null && sanitized[field] !== '') {
+        const parsed = Number(sanitized[field]);
+        if (Number.isFinite(parsed)) {
+          sanitized[field] = parsed;
         }
+      }
+    });
 
-        // Sanitize building info
-        if (sanitized.buildingInfo) {
-            sanitized.buildingInfo = {
-                ...sanitized.buildingInfo,
-                buildingName: sanitized.buildingInfo.buildingName?.trim(),
-                floor: sanitized.buildingInfo.floor?.trim(),
-                room: sanitized.buildingInfo.room?.trim(),
-                landmark: sanitized.buildingInfo.landmark?.trim()
-            };
-        }
+    return sanitized;
+  }
 
-        return sanitized;
+  static validateAddress(address) {
+    if (typeof address === 'string') {
+      return address.trim().length > 0;
     }
 
-    /**
-     * Generate location search query
-     * @param {Object} filters
-     * @returns {Object} MongoDB query
-     */
-    static buildSearchQuery(filters) {
-        const query = {};
-
-        if (filters.userId) {
-            query.userId = filters.userId;
-        }
-
-        if (filters.type) {
-            query.type = filters.type;
-        }
-
-        if (filters.isVerified !== undefined) {
-            query.isVerified = filters.isVerified;
-        }
-
-        if (filters.city) {
-            query['address.city'] = new RegExp(filters.city, 'i');
-        }
-
-        if (filters.country) {
-            query['address.country'] = new RegExp(filters.country, 'i');
-        }
-
-        return query;
+    if (!address || typeof address !== 'object') {
+      return false;
     }
 
-    /**
-     * Generate sort options for location search
-     * @param {string} sortBy
-     * @param {string} sortOrder
-     * @returns {Object} MongoDB sort object
-     */
-    static buildSortOptions(sortBy = 'createdAt', sortOrder = 'desc') {
-        const sortOptions = {};
+    return ['street', 'city', 'state', 'country']
+      .some((field) => typeof address[field] === 'string' && address[field].trim().length > 0);
+  }
 
-        switch (sortBy) {
-            case 'createdAt':
-                sortOptions.createdAt = sortOrder === 'desc' ? -1 : 1;
-                break;
-            case 'updatedAt':
-                sortOptions.updatedAt = sortOrder === 'desc' ? -1 : 1;
-                break;
-            case 'name':
-                sortOptions.name = sortOrder === 'desc' ? -1 : 1;
-                break;
-            case 'type':
-                sortOptions.type = sortOrder === 'desc' ? -1 : 1;
-                break;
-            default:
-                sortOptions.createdAt = -1;
-        }
+  static buildSearchQuery(filters = {}) {
+    const query = {
+      isActive: filters.isActive ?? true,
+    };
 
-        return sortOptions;
+    if (filters.userId) {
+      query.userId = filters.userId;
     }
 
-    /**
-     * Create geospatial query for location search
-     * @param {Object} center - {lat, lng}
-     * @param {number} radiusKm - Radius in kilometers
-     * @returns {Object} MongoDB geospatial query
-     */
-    static createGeospatialQuery(center, radiusKm) {
-        return {
-            coordinates: {
-                $near: {
-                    $geometry: {
-                        type: 'Point',
-                        coordinates: [center.lng, center.lat]
-                    },
-                    $maxDistance: radiusKm * 1000 // Convert to meters
-                }
-            }
-        };
+    if (filters.helperId) {
+      query.helperId = filters.helperId;
     }
 
-    /**
-     * Validate address object
-     * @param {Object} address
-     * @returns {boolean}
-     */
-    static validateAddress(address) {
-        if (!address || typeof address !== 'object') return false;
-
-        const required = ['street', 'city', 'country'];
-        for (const field of required) {
-            if (!address[field] || typeof address[field] !== 'string' || address[field].trim().length === 0) {
-                return false;
-            }
-        }
-
-        return true;
+    if (filters.placeType) {
+      query.placeType = filters.placeType;
     }
 
-    /**
-     * Generate location name from address
-     * @param {Object} address
-     * @param {string} type
-     * @returns {string}
-     */
-    static generateLocationName(address, type) {
-        if (type === LocationConstants.LOCATION_TYPES.HOME) {
-            return 'Home';
-        } else if (type === LocationConstants.LOCATION_TYPES.WORK) {
-            return 'Work';
-        } else if (address.buildingName) {
-            return address.buildingName;
-        } else if (address.street && address.city) {
-            return `${address.street}, ${address.city}`;
-        } else {
-            return 'Custom Location';
-        }
+    if (filters.isVerified !== undefined) {
+      query.isVerified = filters.isVerified;
     }
 
-    /**
-     * Check if location data is complete
-     * @param {Object} location
-     * @returns {boolean}
-     */
-    static isLocationComplete(location) {
-        const requiredFields = [
-            'type', 'coordinates', 'address'
-        ];
-
-        return requiredFields.every(field => {
-            if (field === 'coordinates') {
-                return location.coordinates &&
-                       Array.isArray(location.coordinates) &&
-                       location.coordinates.length === 2 &&
-                       this.validateCoordinates(location.coordinates[1], location.coordinates[0]);
-            }
-            if (field === 'address') {
-                return this.validateAddress(location.address);
-            }
-            return location[field];
-        });
+    if (filters.city) {
+      query.city = new RegExp(filters.city, 'i');
     }
 
-    /**
-     * Calculate location accuracy based on various factors
-     * @param {Object} location
-     * @returns {number} Accuracy in meters
-     */
-    static calculateAccuracy(location) {
-        let accuracy = LocationConstants.DEFAULTS.ACCURACY;
-
-        // Higher accuracy for verified locations
-        if (location.isVerified) {
-            accuracy = Math.min(accuracy, 5);
-        }
-
-        // Higher accuracy for complete building info
-        if (location.buildingInfo && location.buildingInfo.floor) {
-            accuracy = Math.min(accuracy, 1);
-        }
-
-        return accuracy;
+    if (filters.state) {
+      query.state = new RegExp(filters.state, 'i');
     }
+
+    if (filters.country) {
+      query.country = new RegExp(filters.country, 'i');
+    }
+
+    return query;
+  }
+
+  static buildSortOptions(sortBy = 'createdAt', sortOrder = 'desc') {
+    const validSorts = new Set(['createdAt', 'updatedAt', 'lastUpdated', 'city', 'state']);
+    const key = validSorts.has(sortBy) ? sortBy : 'createdAt';
+    return { [key]: sortOrder === 'asc' ? 1 : -1 };
+  }
+
+  static formatLocationResponse(location) {
+    if (!location) {
+      return null;
+    }
+
+    const coordinates = Array.isArray(location.coordinates)
+      ? location.coordinates
+      : Array.isArray(location.coordinates?.coordinates)
+        ? location.coordinates.coordinates
+        : [];
+
+    return {
+      id: location._id,
+      userId: location.userId,
+      helperId: location.helperId,
+      type: location.type,
+      coordinates,
+      address: location.address,
+      street: location.street,
+      city: location.city,
+      state: location.state,
+      country: location.country,
+      zipCode: location.zipCode,
+      placeType: location.placeType,
+      buildingName: location.buildingName,
+      floor: location.floor,
+      apartmentUnit: location.apartmentUnit,
+      landmark: location.landmark,
+      emergencyAccessNotes: location.emergencyAccessNotes,
+      provider: location.provider,
+      source: location.source,
+      accuracy: location.accuracy,
+      altitude: location.altitude,
+      altitudeAccuracy: location.altitudeAccuracy,
+      speed: location.speed,
+      heading: location.heading,
+      isVerified: location.isVerified,
+      isActive: location.isActive,
+      lastUpdated: location.lastUpdated,
+      createdAt: location.createdAt,
+      updatedAt: location.updatedAt,
+    };
+  }
+
+  static calculateAccuracy(location = {}) {
+    if (typeof location.accuracy === 'number' && Number.isFinite(location.accuracy)) {
+      return location.accuracy;
+    }
+
+    return LocationConstants.DEFAULTS.ACCURACY;
+  }
+
+  static async reverseGeocode(latitude, longitude) {
+    if (!this.validateCoordinates(latitude, longitude)) {
+      throw new Error(LocationConstants.MESSAGES.VALIDATION.INVALID_COORDINATES);
+    }
+
+    const fallback = {
+      formattedAddress: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+      street: '',
+      city: '',
+      state: '',
+      country: '',
+      postalCode: '',
+    };
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), LocationConstants.GEOCODING.TIMEOUT_MS);
+
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`;
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'LifeLine/1.0',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        return fallback;
+      }
+
+      const data = await response.json();
+      const addr = data?.address || {};
+
+      return {
+        formattedAddress: data?.display_name || fallback.formattedAddress,
+        street: addr.road || addr.residential || addr.neighbourhood || '',
+        city: addr.city || addr.town || addr.village || addr.county || '',
+        state: addr.state || '',
+        country: addr.country || '',
+        postalCode: addr.postcode || '',
+      };
+    } catch (_error) {
+      return fallback;
+    }
+  }
 }

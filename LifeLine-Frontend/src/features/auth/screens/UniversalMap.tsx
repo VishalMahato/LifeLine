@@ -1,20 +1,50 @@
-import Ionicons from '@expo/vector-icons/Ionicons'
-import React from 'react'
-import { StyleSheet, Text, View } from 'react-native'
-import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen'
-import { WebView } from 'react-native-webview'
+import Ionicons from "@expo/vector-icons/Ionicons";
+import React from "react";
+import { StyleSheet, Text, View } from "react-native";
+import {
+  heightPercentageToDP as hp,
+  widthPercentageToDP as wp,
+} from "react-native-responsive-screen";
+import { WebView } from "react-native-webview";
+
+type MarkerData = {
+  latitude: number;
+  longitude: number;
+  title?: string;
+  type?: "helper" | "ngo" | "user";
+};
 
 type Props = {
-  latitude: number | undefined
-  longitude: number | undefined
-}
+  latitude: number | undefined;
+  longitude: number | undefined;
+  markers?: MarkerData[];
+};
 
-const UniversalMap = ({ latitude, longitude }: Props) => {
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+const UniversalMap = ({ latitude, longitude, markers = [] }: Props) => {
   const hasCoords =
-    latitude !== undefined &&
-    longitude !== undefined &&
-    Number.isFinite(latitude) &&
-    Number.isFinite(longitude)
+    latitude !== undefined
+    && longitude !== undefined
+    && Number.isFinite(latitude)
+    && Number.isFinite(longitude);
+
+  const safeMarkers = markers
+    .filter(
+      (marker) => Number.isFinite(marker.latitude) && Number.isFinite(marker.longitude),
+    )
+    .map((marker) => ({
+      latitude: marker.latitude,
+      longitude: marker.longitude,
+      title: marker.title ? escapeHtml(marker.title) : undefined,
+      type: marker.type,
+    }));
 
   const leafletHtml = `<!DOCTYPE html>
 <html>
@@ -51,7 +81,7 @@ const UniversalMap = ({ latitude, longitude }: Props) => {
     <script>
       const lat = ${latitude ?? 0};
       const lng = ${longitude ?? 0};
-      const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([lat, lng], 16);
+      const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([lat, lng], 15);
 
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         subdomains: 'abcd',
@@ -65,16 +95,22 @@ const UniversalMap = ({ latitude, longitude }: Props) => {
         iconAnchor: [10, 10]
       });
 
-      L.marker([lat, lng], { icon: markerIcon }).addTo(map);
+      L.marker([lat, lng], { icon: markerIcon }).addTo(map).bindPopup('Your location');
+
+      const markers = ${JSON.stringify(safeMarkers)};
+      markers.forEach((marker) => {
+        const title = marker.title || (marker.type === 'ngo' ? 'NGO' : marker.type === 'helper' ? 'Helper' : 'Location');
+        L.marker([marker.latitude, marker.longitude]).addTo(map).bindPopup(title);
+      });
     </script>
   </body>
-</html>`
+</html>`;
 
   return (
     <View style={styles.container}>
       {hasCoords ? (
         <WebView
-          originWhitelist={['*']}
+          originWhitelist={["*"]}
           source={{ html: leafletHtml }}
           style={styles.map}
           javaScriptEnabled
@@ -84,7 +120,7 @@ const UniversalMap = ({ latitude, longitude }: Props) => {
       ) : (
         <View style={styles.placeholderContainer}>
           <View style={styles.iconCircle}>
-            <Ionicons name="map-outline" size={hp('4.4%')} color="#2F80ED" />
+            <Ionicons name="map-outline" size={hp("4.4%")} color="#2F80ED" />
           </View>
           <Text style={styles.placeholderTitle}>Awaiting Location</Text>
           <Text style={styles.placeholderText}>
@@ -93,49 +129,48 @@ const UniversalMap = ({ latitude, longitude }: Props) => {
         </View>
       )}
     </View>
-  )
-}
+  );
+};
 
-export default UniversalMap
-
+export default UniversalMap;
 
 const styles = StyleSheet.create({
   container: {
     height: 250,
-    width: '100%',
+    width: "100%",
     borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#fff',
+    overflow: "hidden",
+    backgroundColor: "#fff",
   },
   map: {
     flex: 1,
   },
   placeholderContainer: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: wp('10%'),
+    backgroundColor: "#F8FAFC",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: wp("10%"),
   },
   iconCircle: {
-    width: hp('8.8%'),
-    height: hp('8.8%'),
-    borderRadius: hp('4.4%'),
-    backgroundColor: '#EAF4FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: hp('2%'),
+    width: hp("8.8%"),
+    height: hp("8.8%"),
+    borderRadius: hp("4.4%"),
+    backgroundColor: "#EAF4FF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: hp("2%"),
   },
   placeholderTitle: {
-    fontSize: hp('2.2%'),
-    fontWeight: '800',
-    color: '#0A2540',
-    marginBottom: hp('1%'),
+    fontSize: hp("2.2%"),
+    fontWeight: "800",
+    color: "#0A2540",
+    marginBottom: hp("1%"),
   },
   placeholderText: {
-    fontSize: hp('1.6%'),
-    color: '#5F6C7B',
-    textAlign: 'center',
-    lineHeight: hp('2.2%'),
+    fontSize: hp("1.6%"),
+    color: "#5F6C7B",
+    textAlign: "center",
+    lineHeight: hp("2.2%"),
   },
-})
+});

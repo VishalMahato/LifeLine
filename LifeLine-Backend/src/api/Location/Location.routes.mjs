@@ -1,87 +1,37 @@
 import express from 'express';
 import LocationController from './Location.controller.mjs';
-import LocationConstants from './Location.constants.mjs';
 import AuthMiddleware from '../Auth/v1/Auth.middleware.mjs';
 
 const router = express.Router();
 
 /**
- * Location Routes - API endpoints for Location operations
- * @author Senior Software Engineer
- * @version 1.0.0
- * @since 2026
+ * Location routes.
+ * Keep specific routes above dynamic `/:id` routes.
  */
 
-// Create location
-router.post(
-  '/',
-  // authenticate, // Uncomment when auth middleware is available
-  LocationController.createLocation,
-);
-
-// Get location by ID
-router.get(
-  '/:id',
-  // authenticate, // Uncomment when auth middleware is available
-  LocationController.getLocation,
-);
-
-// Get user's locations
-router.get(
-  '/user/:userId',
-  // authenticate, // Uncomment when auth middleware is available
-  LocationController.getUserLocations,
-);
-
-// Get current user's locations
-router.get('/user/me/locations', AuthMiddleware.authenticate, LocationController.getUserLocations);
-
-// Update location
-router.put(
-  '/:id',
-  // authenticate, // Uncomment when auth middleware is available
-  LocationController.updateLocation,
-);
-
-// Update current location
+// Core creation/update routes
+router.post('/', LocationController.createLocation);
+router.post('/coordinates', LocationController.createLocationFromCoordinates);
 router.post('/current', AuthMiddleware.authenticate, LocationController.updateCurrentLocation);
 
-// Search nearby locations
-router.get(
-  '/nearby/search',
-  // Add rate limiting when available
-  LocationController.searchNearbyLocations,
-);
-
-// Search locations
-router.get(
-  '/',
-  // authenticate, // Uncomment when auth middleware is available
-  LocationController.searchLocations,
-);
-
-// Get location statistics
+// User-specific routes
+router.get('/user/me/locations', AuthMiddleware.authenticate, LocationController.getUserLocations);
 router.get('/user/me/stats', AuthMiddleware.authenticate, LocationController.getLocationStats);
+router.get('/user/:userId', LocationController.getUserLocations);
+router.get('/user/:userId/stats', LocationController.getLocationStats);
 
-// Get location statistics
-router.get(
-  '/user/:userId/stats',
-  // authenticate, // Uncomment when auth middleware is available
-  LocationController.getLocationStats,
-);
+// Nearby search routes
+router.get('/nearby/search', LocationController.searchNearbyLocations);
+router.get('/nearby/helpers', LocationController.searchNearbyHelpers);
 
-// Verify location (Admin only)
-router.patch(
-  '/:id/verify',
-  // authenticate, authorize([LocationConstants.ROLES.ADMIN]), // Uncomment when auth middleware is available
-  LocationController.verifyLocation,
-);
+// Filtered query route
+router.get('/', LocationController.searchLocations);
 
-// Delete location
-router.delete(
-  '/:id',
-  // authenticate, // Uncomment when auth middleware is available
-  LocationController.deleteLocation,
-);
+// Single-resource routes
+router.get('/:id', LocationController.getLocation);
+router.put('/:id', LocationController.updateLocation);
+router.patch('/:id/address', LocationController.updateLocationAddress);
+router.patch('/:id/verify', LocationController.verifyLocation);
+router.delete('/:id', LocationController.deleteLocation);
 
 export default router;
