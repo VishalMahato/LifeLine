@@ -13,11 +13,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Platform,
 } from 'react-native';
-import DateTimePicker, {
-  DateTimePickerEvent,
-} from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   heightPercentageToDP as hp,
@@ -110,7 +106,6 @@ const parseNumber = (value: string): number | undefined => {
 const MedicalInfoScreen = forwardRef<MedicalInfoHandle>((_props, ref) => {
   const [bloodType, setBloodType] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [heightCm, setHeightCm] = useState('');
   const [weightKg, setWeightKg] = useState('');
   const [disabilities, setDisabilities] = useState('');
@@ -132,13 +127,6 @@ const MedicalInfoScreen = forwardRef<MedicalInfoHandle>((_props, ref) => {
     () => !!medicalInfo && Object.keys(medicalInfo).length > 0,
     [medicalInfo],
   );
-
-  const onDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (event.type === 'set' && selectedDate) {
-      setDateOfBirth(selectedDate);
-    }
-  };
 
   const updateAllergy = (index: number, key: keyof Allergy, value: string) => {
     setAllergies((prev) => prev.map((item, i) => (i === index ? { ...item, [key]: value } : item)));
@@ -390,21 +378,12 @@ const MedicalInfoScreen = forwardRef<MedicalInfoHandle>((_props, ref) => {
         </View>
 
         <Text style={styles.label}>Date of Birth</Text>
-        <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
-          <Text style={toInputDate(dateOfBirth) ? styles.valueText : styles.placeholderText}>
-            {toInputDate(dateOfBirth) || 'YYYY-MM-DD'}
-          </Text>
-        </TouchableOpacity>
-
-        {showDatePicker ? (
-          <DateTimePicker
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            value={dateOfBirth || new Date('2000-01-01')}
-            onChange={onDateChange}
-            maximumDate={new Date()}
-          />
-        ) : null}
+        <TextInput
+          placeholder="YYYY-MM-DD"
+          style={styles.input}
+          value={toInputDate(dateOfBirth)}
+          onChangeText={(value) => setDateOfBirth(toDateOrNull(value))}
+        />
       </View>
 
       <View style={styles.card}>

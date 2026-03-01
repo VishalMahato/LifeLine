@@ -1,5 +1,4 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { createStackNavigator } from "@react-navigation/stack";
 import { router } from "expo-router";
 import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
@@ -10,59 +9,11 @@ import Dashboard from "./Dashboard";
 import SOSActiveAIScreen from "../(global)/SOSActiveAIScreen";
 
 import NearbyScreen from "./Nearby";
-import AccountDetails from "./Profile/AccountDetails";
-import HistoryScreen from "./Profile/History";
 import Profile from "./Profile/Profile";
-import SavedAddress from "./Profile/SavedAddress";
-import HelperProfileScreen from "./Helper/[helperId]";
-import NgoProfileScreen from "./Helper/[ngoId]";
 import RequestHelpScreen from "./Helper/HelperRequest";
 import { useAppSelector } from "@/src/core/store";
 
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
-
-export const ProfileStack = () => {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen
-        name="Profile"
-        component={Profile}
-      />
-      <Stack.Screen
-        name="AccountDetails"
-        component={AccountDetails}
-      />
-      <Stack.Screen
-        name="SavedAddress"
-        component={SavedAddress}
-      />
-      <Stack.Screen
-        name="History"
-        component={HistoryScreen}
-      />
-    </Stack.Navigator>
-  );
-};
-
-export const HelperStack = () => {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen
-        name="HelperRequest"
-        component={RequestHelpScreen}
-      />
-      <Stack.Screen
-        name="HelperProfile"
-        component={HelperProfileScreen}
-      />
-      <Stack.Screen
-        name="NgoProfile"
-        component={NgoProfileScreen}
-      />
-    </Stack.Navigator>
-  );
-};
 
 export default function Layout() {
   const role = useAppSelector((state) => state.auth.userData?.role);
@@ -138,7 +89,7 @@ export default function Layout() {
 
       <Tab.Screen
         name="Helpers"
-        component={HelperStack}
+        component={RequestHelpScreen}
         options={{
           tabBarIcon: ({ color }) => (
             <Ionicons name="people" size={22} color={color} />
@@ -148,7 +99,7 @@ export default function Layout() {
 
       <Tab.Screen
         name="Profile"
-        component={ProfileStack}
+        component={Profile}
         options={{
           tabBarIcon: ({ color }) => (
             <Ionicons name="person" size={22} color={color} />

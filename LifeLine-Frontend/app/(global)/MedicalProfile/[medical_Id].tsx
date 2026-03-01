@@ -1,7 +1,8 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
@@ -13,69 +14,54 @@ import {
   heightPercentageToDP as hp,
   widthPercentageToDP as wp,
 } from "react-native-responsive-screen";
+import { useAppDispatch, useAppSelector } from "@/src/core/store";
+import { fetchMedicalInfo } from "@/src/features/auth/medicalSlice";
 
-type Allergy = {
-  name: string;
-  level: string;
-  color: string;
+type AllergyItem = {
+  substance?: string;
+  severity?: string;
 };
 
-type DetailItem = {
-  title: string;
-  desc: string;
+type ConditionItem = {
+  name?: string;
+  status?: string;
+  notes?: string;
 };
 
-type EmergencyContact = {
-  name: string;
-  relation: string;
+type MedicationItem = {
+  name?: string;
+  dosage?: string;
+  frequency?: string;
 };
 
-type MedicalProfileData = {
-  name: string;
-  lastUpdated: string;
-  bloodType: string;
-  organDonor: string;
-  allergies: Allergy[];
-  conditions: DetailItem[];
-  medications: DetailItem[];
-  contacts: EmergencyContact[];
+type EmergencyContactItem = {
+  fullName?: string;
+  relation?: string;
+  phoneNumber?: string;
 };
 
-const MEDICAL_PROFILES: Record<string, MedicalProfileData> = {
-  "25": {
-    name: "Johnathan Doe",
-    lastUpdated: "OCT 24, 2023",
-    bloodType: "A+",
-    organDonor: "Yes",
-    allergies: [
-      { name: "Penicillin", level: "Severe", color: "#EF4444" },
-      { name: "Peanuts", level: "Moderate", color: "#F59E0B" },
-    ],
-    conditions: [
-      {
-        title: "Type 1 Diabetes",
-        desc: "Diagnosed 2015. Requires insulin pump therapy.",
-      },
-      {
-        title: "Mild Asthma",
-        desc: "Seasonal triggers. Inhaler used as needed.",
-      },
-    ],
-    medications: [
-      {
-        title: "Insulin Aspart (Novolog)",
-        desc: "Dosage: Sliding Scale via Pump",
-      },
-      {
-        title: "Albuterol Inhaler",
-        desc: "Dosage: 2 puffs as needed for shortness of breath",
-      },
-    ],
-    contacts: [
-      { name: "Sarah Doe", relation: "Spouse • (555) 012-3456" },
-      { name: "Michael Chen", relation: "Brother • (555) 987-6543" },
-    ],
-  },
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  return null;
+};
+
+const asString = (value: unknown, fallback = "-") => {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  return fallback;
+};
+
+const asArray = <T,>(value: unknown): T[] => {
+  if (Array.isArray(value)) {
+    return value as T[];
+  }
+
+  return [];
 };
 
 type SectionProps = {
@@ -105,44 +91,42 @@ function InfoCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function AllergyItem({ item }: { item: Allergy }) {
-  return (
-    <View style={styles.listItem}>
-      <Text style={styles.itemTitle}>{item.name}</Text>
-      <View style={[styles.badge, { backgroundColor: `${item.color}20` }]}>
-        <Text style={[styles.badgeText, { color: item.color }]}>{item.level}</Text>
-      </View>
-    </View>
-  );
-}
-
-function DetailRow({ item }: { item: DetailItem }) {
-  return (
-    <View style={styles.conditionItem}>
-      <Text style={styles.itemTitle}>{item.title}</Text>
-      <Text style={styles.itemDesc}>{item.desc}</Text>
-    </View>
-  );
-}
-
-function ContactRow({ item }: { item: EmergencyContact }) {
-  return (
-    <View style={styles.listItem}>
-      <View>
-        <Text style={styles.itemTitle}>{item.name}</Text>
-        <Text style={styles.itemDesc}>{item.relation}</Text>
-      </View>
-      <TouchableOpacity style={styles.callBtn}>
-        <Ionicons name="call" size={hp("2%")} color="#1E73E8" />
-      </TouchableOpacity>
-    </View>
-  );
+function EmptyState({ text }: { text: string }) {
+  return <Text style={styles.emptyText}>{text}</Text>;
 }
 
 export default function MedicalProfileScreen() {
+  const dispatch = useAppDispatch();
+
   const { medical_Id } = useLocalSearchParams<{ medical_Id?: string }>();
-  const selectedId = Array.isArray(medical_Id) ? medical_Id[0] : medical_Id ?? "25";
-  const profileData = MEDICAL_PROFILES[selectedId] ?? MEDICAL_PROFILES["25"];
+  const selectedId = Array.isArray(medical_Id) ? medical_Id[0] : medical_Id;
+
+  const { userData, userId, authId } = useAppSelector((state) => state.auth);
+  const { medicalInfo, isLoading, error } = useAppSelector((state) => state.medical);
+
+  const medicalLookupId = selectedId || userId || authId || "";
+
+  useEffect(() => {
+    if (!medicalLookupId) {
+      return;
+    }
+
+    void dispatch(fetchMedicalInfo(medicalLookupId));
+  }, [dispatch, medicalLookupId]);
+
+  const record = asRecord(medicalInfo) ?? {};
+
+  const bloodType = asString(record.bloodType);
+  const organDonor = typeof record.organDonor === "boolean"
+    ? record.organDonor
+      ? "Yes"
+      : "No"
+    : "-";
+
+  const allergies = asArray<AllergyItem>(record.allergies);
+  const conditions = asArray<ConditionItem>(record.conditions);
+  const medications = asArray<MedicationItem>(record.medications);
+  const contacts = asArray<EmergencyContactItem>(record.emergencyContacts);
 
   return (
     <ScrollView
@@ -159,45 +143,114 @@ export default function MedicalProfileScreen() {
 
       <View style={styles.profileCard}>
         <Image
-          source={{ uri: "https://i.pravatar.cc/150?img=15" }}
+          source={{
+            uri:
+              userData?.profileImage ||
+              "https://i.pravatar.cc/150?img=15",
+          }}
           style={styles.avatar}
         />
         <View>
-          <Text style={styles.name}>{profileData.name}</Text>
-          <Text style={styles.updated}>LAST UPDATED: {profileData.lastUpdated}</Text>
+          <Text style={styles.name}>{userData?.fullName || "LifeLine User"}</Text>
+          <Text style={styles.updated}>{userData?.mobileNumber || "No phone added"}</Text>
         </View>
       </View>
 
+      {isLoading && !medicalInfo ? (
+        <View style={styles.loaderWrap}>
+          <ActivityIndicator size="small" color="#2563EB" />
+          <Text style={styles.loaderText}>Loading medical profile...</Text>
+        </View>
+      ) : null}
+
+      {error && !medicalInfo ? (
+        <View style={styles.errorWrap}>
+          <Text style={styles.errorText}>{error}</Text>
+          {medicalLookupId ? (
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => {
+                void dispatch(fetchMedicalInfo(medicalLookupId));
+              }}
+            >
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
+
       <View style={styles.rowCard}>
-        <InfoCard label="BLOOD TYPE" value={profileData.bloodType} />
-        <InfoCard label="ORGAN DONOR" value={profileData.organDonor} />
+        <InfoCard label="BLOOD TYPE" value={bloodType} />
+        <InfoCard label="ORGAN DONOR" value={organDonor} />
       </View>
 
       <Section title="ALLERGIES" icon="warning">
-        {profileData.allergies.map((item) => (
-          <AllergyItem key={item.name} item={item} />
-        ))}
+        {allergies.length ? (
+          allergies.map((item, index) => (
+            <View key={`${item.substance || "allergy"}-${index}`} style={styles.listItem}>
+              <Text style={styles.itemTitle}>{asString(item.substance, "Unknown Allergy")}</Text>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{asString(item.severity, "unspecified")}</Text>
+              </View>
+            </View>
+          ))
+        ) : (
+          <EmptyState text="No allergies recorded" />
+        )}
       </Section>
 
       <Section title="MEDICAL CONDITIONS" icon="medkit">
-        {profileData.conditions.map((item) => (
-          <DetailRow key={item.title} item={item} />
-        ))}
+        {conditions.length ? (
+          conditions.map((item, index) => (
+            <View key={`${item.name || "condition"}-${index}`} style={styles.conditionItem}>
+              <Text style={styles.itemTitle}>{asString(item.name, "Unknown Condition")}</Text>
+              <Text style={styles.itemDesc}>
+                {[item.status, item.notes].filter(Boolean).join(" • ") || "No notes"}
+              </Text>
+            </View>
+          ))
+        ) : (
+          <EmptyState text="No conditions recorded" />
+        )}
       </Section>
 
       <Section title="CURRENT MEDICATIONS" icon="flask">
-        {profileData.medications.map((item) => (
-          <DetailRow key={item.title} item={item} />
-        ))}
+        {medications.length ? (
+          medications.map((item, index) => (
+            <View key={`${item.name || "medication"}-${index}`} style={styles.conditionItem}>
+              <Text style={styles.itemTitle}>{asString(item.name, "Unknown Medication")}</Text>
+              <Text style={styles.itemDesc}>
+                {[item.dosage, item.frequency].filter(Boolean).join(" • ") || "No dosage notes"}
+              </Text>
+            </View>
+          ))
+        ) : (
+          <EmptyState text="No medications recorded" />
+        )}
       </Section>
 
       <Section title="EMERGENCY CONTACTS" icon="call">
-        {profileData.contacts.map((item) => (
-          <ContactRow key={item.name} item={item} />
-        ))}
+        {contacts.length ? (
+          contacts.map((item, index) => (
+            <View key={`${item.fullName || "contact"}-${index}`} style={styles.listItem}>
+              <View style={styles.contactLeft}>
+                <Text style={styles.itemTitle}>{asString(item.fullName, "Unnamed Contact")}</Text>
+                <Text style={styles.itemDesc}>
+                  {[item.relation, item.phoneNumber].filter(Boolean).join(" • ") ||
+                    "No details"}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.callBtn}>
+                <Ionicons name="call" size={hp("2%")} color="#1E73E8" />
+              </TouchableOpacity>
+            </View>
+          ))
+        ) : (
+          <EmptyState text="No emergency contacts recorded" />
+        )}
       </Section>
 
-      <View style={{ height: hp("8%") }} />
+      <View style={styles.footerSpacer} />
     </ScrollView>
   );
 }
@@ -254,6 +307,44 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     marginTop: 4,
   },
+  loaderWrap: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    paddingVertical: hp("2%"),
+    marginBottom: hp("2%"),
+    alignItems: "center",
+  },
+  loaderText: {
+    marginTop: hp("1%"),
+    color: "#475569",
+    fontSize: hp("1.5%"),
+  },
+  errorWrap: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: wp("4%"),
+    marginBottom: hp("2%"),
+  },
+  errorText: {
+    color: "#B91C1C",
+    fontSize: hp("1.5%"),
+    fontWeight: "600",
+  },
+  retryButton: {
+    marginTop: hp("1.5%"),
+    alignSelf: "flex-start",
+    backgroundColor: "#2563EB",
+    borderRadius: 10,
+    paddingHorizontal: wp("4%"),
+    paddingVertical: hp("0.8%"),
+  },
+  retryText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: hp("1.4%"),
+  },
   rowCard: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -274,7 +365,7 @@ const styles = StyleSheet.create({
     marginBottom: hp("0.8%"),
   },
   highlight: {
-    fontSize: hp("2.6%"),
+    fontSize: hp("2.2%"),
     fontWeight: "800",
     color: "#2563EB",
   },
@@ -311,6 +402,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
+  contactLeft: {
+    flex: 1,
+    marginRight: wp("3%"),
+  },
   conditionItem: {
     paddingVertical: hp("1.5%"),
     borderBottomWidth: 1,
@@ -318,28 +413,37 @@ const styles = StyleSheet.create({
   },
   itemTitle: {
     fontWeight: "600",
-    fontSize: hp("1.7%"),
     color: "#111827",
   },
   itemDesc: {
-    fontSize: hp("1.3%"),
-    color: "#6B7280",
     marginTop: 3,
+    fontSize: hp("1.4%"),
+    color: "#6B7280",
+    lineHeight: hp("2.1%"),
   },
   badge: {
-    paddingHorizontal: wp("4%"),
-    paddingVertical: hp("0.6%"),
-    borderRadius: 25,
+    backgroundColor: "#FEE2E2",
+    borderRadius: 999,
+    paddingHorizontal: wp("3%"),
+    paddingVertical: hp("0.5%"),
   },
   badgeText: {
-    fontSize: hp("1.2%"),
-    fontWeight: "600",
+    color: "#B91C1C",
+    fontSize: hp("1.3%"),
+    fontWeight: "700",
+    textTransform: "capitalize",
   },
   callBtn: {
-    backgroundColor: "#DBEAFE",
-    padding: wp("3%"),
-    borderRadius: 100,
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "#EFF6FF",
+    borderRadius: 30,
+    padding: hp("1.2%"),
+  },
+  emptyText: {
+    color: "#94A3B8",
+    fontSize: hp("1.5%"),
+    fontWeight: "500",
+  },
+  footerSpacer: {
+    height: hp("8%"),
   },
 });

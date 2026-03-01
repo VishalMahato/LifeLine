@@ -1,6 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import * as Location from "expo-location";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Easing,
@@ -16,22 +17,58 @@ import {
 } from "react-native-responsive-screen";
 import { useAppDispatch, useAppSelector } from "@/src/core/store";
 import { activateSos, deactivateSos } from "@/src/features/SOS/sos.slice";
+import {
+  clearPersistedLocationUserId,
+  persistLocationUserId,
+  reportLocationCoordinates,
+  startBackgroundLocationTracking,
+  stopBackgroundLocationTracking,
+} from "@/src/shared/tasks/location.task";
 
 const SOS_HOLD_SECONDS = 10;
+const LOCATION_REPORT_INTERVAL_MS = 5000;
+
+type GpsStatus =
+  | "idle"
+  | "syncing"
+  | "live"
+  | "permission-denied"
+  | "error";
 
 const Dashboard = () => {
   const router = useRouter();
   const dispatch = useAppDispatch();
 
   const role = useAppSelector((state) => state.auth.userData?.role);
+  const authId = useAppSelector((state) => state.auth.authId);
+  const userId = useAppSelector((state) => state.auth.userId);
   const isSOSActive = useAppSelector((state) => state.sos.isSOSActive);
+  const trackedUserId = authId || userId || null;
 
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<GpsStatus>("idle");
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const locationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rippleAnim = useRef(new Animated.Value(0)).current;
+
+  const reportForegroundLocation = useCallback(async () => {
+    if (!trackedUserId) {
+      return;
+    }
+
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
+
+    await reportLocationCoordinates(
+      trackedUserId,
+      position.coords,
+      position.timestamp || Date.now(),
+    );
+  }, [trackedUserId]);
 
   useEffect(() => {
     if (!role) {
@@ -43,6 +80,106 @@ const Dashboard = () => {
       router.replace("/User/Helper/HelperRequest");
     }
   }, [role, router]);
+
+  useEffect(() => {
+    let isUnmounted = false;
+
+    const syncTrackedUser = async () => {
+      if (!trackedUserId) {
+        return;
+      }
+
+      try {
+        await persistLocationUserId(trackedUserId);
+      } catch (error) {
+        if (!isUnmounted) {
+          console.error("Failed to persist tracking user id", error);
+        }
+      }
+    };
+
+    void syncTrackedUser();
+
+    return () => {
+      isUnmounted = true;
+      void clearPersistedLocationUserId();
+    };
+  }, [trackedUserId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const clearForegroundTimer = () => {
+      if (!locationTimerRef.current) {
+        return;
+      }
+
+      clearInterval(locationTimerRef.current);
+      locationTimerRef.current = null;
+    };
+
+    const reportOnce = async () => {
+      try {
+        await reportForegroundLocation();
+        if (isMounted) {
+          setGpsStatus("live");
+        }
+      } catch (error) {
+        if (isMounted) {
+          setGpsStatus("error");
+        }
+        console.error("Failed to report foreground location", error);
+      }
+    };
+
+    const startTracking = async () => {
+      if (!trackedUserId) {
+        setGpsStatus("error");
+        return;
+      }
+
+      setGpsStatus("syncing");
+
+      const foregroundPermission =
+        await Location.requestForegroundPermissionsAsync();
+      if (foregroundPermission.status !== "granted") {
+        setGpsStatus("permission-denied");
+        return;
+      }
+
+      await reportOnce();
+
+      clearForegroundTimer();
+      locationTimerRef.current = setInterval(() => {
+        void reportOnce();
+      }, LOCATION_REPORT_INTERVAL_MS);
+
+      const backgroundStatus = await startBackgroundLocationTracking();
+      if (backgroundStatus === "permission-denied" && isMounted) {
+        setGpsStatus("permission-denied");
+      }
+    };
+
+    const stopTracking = async () => {
+      clearForegroundTimer();
+      await stopBackgroundLocationTracking();
+      if (isMounted) {
+        setGpsStatus("idle");
+      }
+    };
+
+    if (isSOSActive) {
+      void startTracking();
+    } else {
+      void stopTracking();
+    }
+
+    return () => {
+      isMounted = false;
+      clearForegroundTimer();
+      void stopBackgroundLocationTracking();
+    };
+  }, [isSOSActive, reportForegroundLocation, trackedUserId]);
 
   useEffect(() => {
     let animation: Animated.CompositeAnimation | null = null;
@@ -88,6 +225,9 @@ const Dashboard = () => {
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
+      }
+      if (locationTimerRef.current) {
+        clearInterval(locationTimerRef.current);
       }
       Vibration.cancel();
     };
@@ -166,6 +306,39 @@ const Dashboard = () => {
       ? "Release to cancel"
       : "Hold for 10s to activate";
 
+  const gpsBadgeConfig: Record<
+    GpsStatus,
+    { label: string; color: string; backgroundColor: string }
+  > = {
+    idle: {
+      label: "GPS READY",
+      color: "#334155",
+      backgroundColor: "#E2E8F0",
+    },
+    syncing: {
+      label: "SYNCING",
+      color: "#1D4ED8",
+      backgroundColor: "#DBEAFE",
+    },
+    live: {
+      label: "GPS LIVE",
+      color: "#166534",
+      backgroundColor: "#DCFCE7",
+    },
+    "permission-denied": {
+      label: "GPS BLOCKED",
+      color: "#B45309",
+      backgroundColor: "#FEF3C7",
+    },
+    error: {
+      label: "SYNC ERROR",
+      color: "#B91C1C",
+      backgroundColor: "#FEE2E2",
+    },
+  };
+
+  const activeGpsBadge = gpsBadgeConfig[gpsStatus];
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -177,9 +350,11 @@ const Dashboard = () => {
           </View>
         </View>
 
-        <View style={styles.gpsBadge}>
-          <View style={styles.gpsDot} />
-          <Text style={styles.gpsText}>GPS ACTIVE</Text>
+        <View style={[styles.gpsBadge, { backgroundColor: activeGpsBadge.backgroundColor }]}>
+          <View style={[styles.gpsDot, { backgroundColor: activeGpsBadge.color }]} />
+          <Text style={[styles.gpsText, { color: activeGpsBadge.color }]}>
+            {activeGpsBadge.label}
+          </Text>
         </View>
       </View>
 
