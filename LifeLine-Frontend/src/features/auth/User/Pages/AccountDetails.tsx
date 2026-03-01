@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { useNavigation } from '@react-navigation/native'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Image,
   KeyboardAvoidingView,
@@ -16,6 +16,8 @@ import {
   heightPercentageToDP as hp,
   widthPercentageToDP as wp,
 } from 'react-native-responsive-screen'
+import { useAppDispatch, useAppSelector } from '@/src/core/store'
+import { updateUserData } from '@/src/features/auth/authSlice'
 
 const INITIAL_VALUES = {
   fullName: 'Johnathan Doe',
@@ -49,12 +51,31 @@ function FieldCard({ label, value, editable, keyboardType = 'default', onChange 
 
 export default function AccountDetailsPage() {
   const navigation = useNavigation<any>()
+  const dispatch = useAppDispatch()
+  const userData = useAppSelector((state) => state.auth.userData)
 
   const [isEdit, setIsEdit] = useState(false)
   const [savedProfile, setSavedProfile] = useState(INITIAL_VALUES)
   const [fullName, setFullName] = useState(savedProfile.fullName)
   const [phone, setPhone] = useState(savedProfile.phone)
   const [email, setEmail] = useState(savedProfile.email)
+
+  useEffect(() => {
+    if (!userData) {
+      return
+    }
+
+    const nextProfile = {
+      fullName: userData.fullName || INITIAL_VALUES.fullName,
+      phone: userData.mobileNumber || INITIAL_VALUES.phone,
+      email: userData.email || INITIAL_VALUES.email,
+    }
+
+    setSavedProfile(nextProfile)
+    setFullName(nextProfile.fullName)
+    setPhone(nextProfile.phone)
+    setEmail(nextProfile.email)
+  }, [userData])
 
   const handleCancel = () => {
     setFullName(savedProfile.fullName)
@@ -64,11 +85,22 @@ export default function AccountDetailsPage() {
   }
 
   const handleSave = () => {
-    setSavedProfile({
+    const nextProfile = {
       fullName,
       phone,
       email,
-    })
+    }
+
+    setSavedProfile(nextProfile)
+
+    dispatch(
+      updateUserData({
+        fullName: nextProfile.fullName,
+        mobileNumber: nextProfile.phone,
+        email: nextProfile.email,
+      }),
+    )
+
     setIsEdit(false)
   }
 
@@ -99,7 +131,11 @@ export default function AccountDetailsPage() {
           <View style={styles.avatarWrapper}>
             <View style={styles.avatarCircle}>
               <Image
-                source={{ uri: 'https://cdn-icons-png.flaticon.com/512/149/149071.png' }}
+                source={{
+                  uri:
+                    userData?.profileImage ||
+                    'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+                }}
                 style={styles.avatar}
               />
             </View>
