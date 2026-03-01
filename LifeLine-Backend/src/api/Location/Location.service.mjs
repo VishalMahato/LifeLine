@@ -1,6 +1,9 @@
+import mongoose from 'mongoose';
 import Location from './Location.model.mjs';
 import LocationUtils from './Location.utils.mjs';
 import LocationConstants from './Location.constants.mjs';
+import Auth from '../Auth/v1/Auth.model.mjs';
+import User from '../User/User.Schema.mjs';
 import Helper from '../Helper/Helper.model.mjs';
 
 /**
@@ -32,6 +35,77 @@ export default class LocationService {
     }
 
     return null;
+  }
+
+  static async resolveProfileContext(ownerId) {
+    if (!ownerId) {
+      throw new Error(LocationConstants.MESSAGES.VALIDATION.MISSING_REQUIRED_FIELDS);
+    }
+
+    const normalizedId = String(ownerId);
+    const buildContext = (role, profileId, authId = null) => {
+      const isHelper = role === 'helper';
+      return {
+        role,
+        profileId,
+        authId,
+        ownerQuery: isHelper ? { helperId: profileId } : { userId: profileId },
+        ownerFields: isHelper
+          ? { helperId: profileId, userId: undefined }
+          : { userId: profileId, helperId: undefined },
+      };
+    };
+
+    let authRecord = await Auth.findById(normalizedId).select('_id role userId helperId');
+    if (authRecord) {
+      let profileId = authRecord.role === 'helper' ? authRecord.helperId : authRecord.userId;
+
+      if (!profileId) {
+        if (authRecord.role === 'helper') {
+          const helperProfile = await Helper.findOne({ authId: authRecord._id }).select('_id');
+          profileId = helperProfile?._id;
+        } else {
+          const userProfile = await User.findOne({ authId: authRecord._id }).select('_id');
+          profileId = userProfile?._id;
+        }
+      }
+
+      if (!profileId) {
+        throw new Error('Profile not found. Please complete profile setup before saving location.');
+      }
+
+      return buildContext(authRecord.role, profileId, authRecord._id);
+    }
+
+    authRecord = await Auth.findOne({
+      $or: [{ userId: normalizedId }, { helperId: normalizedId }],
+    }).select('_id role userId helperId');
+
+    if (authRecord) {
+      const profileId = authRecord.role === 'helper' ? authRecord.helperId : authRecord.userId;
+      if (profileId) {
+        return buildContext(authRecord.role, profileId, authRecord._id);
+      }
+    }
+
+    if (mongoose.Types.ObjectId.isValid(normalizedId)) {
+      const [userProfile, helperProfile] = await Promise.all([
+        User.findById(normalizedId).select('_id'),
+        Helper.findById(normalizedId).select('_id'),
+      ]);
+
+      if (helperProfile) {
+        return buildContext('helper', helperProfile._id);
+      }
+
+      if (userProfile) {
+        return buildContext('user', userProfile._id);
+      }
+    }
+
+    throw new Error(
+      'Profile not found. Please create a user or helper profile before setting location.',
+    );
   }
 
   static buildCreatePayload(data = {}, coordinates) {
@@ -81,14 +155,23 @@ export default class LocationService {
       throw new Error(LocationConstants.MESSAGES.VALIDATION.INVALID_COORDINATES);
     }
 
-    const existingLocation = await Location.findOne({ userId, isActive: true }).sort({
-      lastUpdated: -1,
-    });
+    const context = await this.resolveProfileContext(userId);
+    const existingLocation = await Location.findOne({
+      ...context.ownerQuery,
+      isActive: true,
+    }).sort({ lastUpdated: -1 });
     if (existingLocation) {
       return LocationUtils.formatLocationResponse(existingLocation);
     }
 
-    const payload = this.buildCreatePayload(locationData, coordinates);
+    const payload = this.buildCreatePayload(
+      {
+        ...locationData,
+        ...context.ownerFields,
+      },
+      coordinates,
+    );
+
     if (!LocationUtils.validateAddress(payload.address)) {
       throw new Error(LocationConstants.MESSAGES.VALIDATION.INVALID_ADDRESS);
     }
@@ -111,9 +194,11 @@ export default class LocationService {
       throw new Error(LocationConstants.MESSAGES.VALIDATION.INVALID_COORDINATES);
     }
 
-    const existingLocation = await Location.findOne({ userId, isActive: true }).sort({
-      lastUpdated: -1,
-    });
+    const context = await this.resolveProfileContext(userId);
+    const existingLocation = await Location.findOne({
+      ...context.ownerQuery,
+      isActive: true,
+    }).sort({ lastUpdated: -1 });
     if (existingLocation) {
       return LocationUtils.formatLocationResponse(existingLocation);
     }
@@ -123,6 +208,7 @@ export default class LocationService {
     const payload = this.buildCreatePayload(
       {
         ...locationData,
+        ...context.ownerFields,
         address: locationData.address || geocode.formattedAddress,
         street: locationData.street || geocode.street,
         city: locationData.city || geocode.city,
@@ -153,7 +239,12 @@ export default class LocationService {
       throw new Error(LocationConstants.MESSAGES.VALIDATION.MISSING_REQUIRED_FIELDS);
     }
 
-    const locations = await Location.find({ userId, isActive: true }).sort({ createdAt: -1 });
+    const context = await this.resolveProfileContext(userId);
+    const locations = await Location.find({
+      ...context.ownerQuery,
+      isActive: true,
+    }).sort({ createdAt: -1 });
+
     return locations.map((location) => LocationUtils.formatLocationResponse(location));
   }
 
@@ -250,8 +341,13 @@ export default class LocationService {
       throw new Error(LocationConstants.MESSAGES.VALIDATION.INVALID_COORDINATES);
     }
 
+    const context = await this.resolveProfileContext(userId);
     const now = new Date();
-    let location = await Location.findOne({ userId, placeType: 'current', isActive: true });
+    let location = await Location.findOne({
+      ...context.ownerQuery,
+      placeType: 'current',
+      isActive: true,
+    });
 
     if (location) {
       location.coordinates = coordinates;
@@ -269,7 +365,7 @@ export default class LocationService {
     const payload = this.buildCreatePayload(
       {
         ...locationData,
-        userId,
+        ...context.ownerFields,
         placeType: 'current',
         address: locationData.address || 'GPS Location',
         source: locationData.source || 'sos',
@@ -486,7 +582,11 @@ export default class LocationService {
       throw new Error(LocationConstants.MESSAGES.VALIDATION.MISSING_REQUIRED_FIELDS);
     }
 
-    const locations = await Location.find({ userId, isActive: true }).sort({ lastUpdated: -1 });
+    const context = await this.resolveProfileContext(userId);
+    const locations = await Location.find({
+      ...context.ownerQuery,
+      isActive: true,
+    }).sort({ lastUpdated: -1 });
 
     const stats = {
       totalLocations: locations.length,

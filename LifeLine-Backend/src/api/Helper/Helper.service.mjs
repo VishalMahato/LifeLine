@@ -1,4 +1,5 @@
 import Helper from './Helper.model.mjs';
+import Auth from '../Auth/v1/Auth.model.mjs';
 import HelperUtils from './Helper.utils.mjs';
 import HelperConstants from './Helper.constants.mjs';
 import mongoose from 'mongoose';
@@ -109,6 +110,7 @@ export default class HelperService {
             });
 
             await helper.save();
+            await Auth.findByIdAndUpdate(authId, { helperId: helper._id });
 
             return HelperUtils.formatHelperResponse(helper);
         } catch (error) {
