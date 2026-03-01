@@ -11,6 +11,10 @@ type SignupMedicalResponse = {
   };
 };
 
+type MedicalProfileResponse = {
+  data?: MedicalInfoRecord | null;
+};
+
 export type SaveSignupMedicalPayload = {
   authId: string;
   medicalData: MedicalInfoRecord;
@@ -115,6 +119,23 @@ export const saveSignupMedicalInfo = createAsyncThunk<
   }
 });
 
+export const fetchMedicalInfo = createAsyncThunk<
+  MedicalInfoRecord | null,
+  string,
+  { rejectValue: string }
+>("medical/fetchMedicalInfo", async (id, { rejectWithValue }) => {
+  try {
+    const response = await axios.get<MedicalProfileResponse>(
+      `${getApiRoot()}/api/medical/v1/${encodeURIComponent(id)}`,
+      { withCredentials: true },
+    );
+
+    return response.data?.data ?? null;
+  } catch (error) {
+    return rejectWithValue(errorMessage(error, "Failed to fetch medical profile"));
+  }
+});
+
 const medicalSlice = createSlice({
   name: "medical",
   initialState,
@@ -151,6 +172,18 @@ const medicalSlice = createSlice({
       .addCase(saveSignupMedicalInfo.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload || "Failed to save medical information";
+      })
+      .addCase(fetchMedicalInfo.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchMedicalInfo.fulfilled, (state, action: PayloadAction<MedicalInfoRecord | null>) => {
+        state.isLoading = false;
+        state.medicalInfo = action.payload;
+      })
+      .addCase(fetchMedicalInfo.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || "Failed to fetch medical profile";
       });
   },
 });

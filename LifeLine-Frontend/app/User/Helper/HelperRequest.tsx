@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { useNavigation } from '@react-navigation/native'
+import { router } from 'expo-router'
 import React, { useMemo, useState } from 'react'
 import {
   Image,
@@ -77,7 +77,6 @@ const SUPPORT_DATA: SupportItem[] = [
 ]
 
 export default function RequestHelpScreen() {
-  const navigation = useNavigation<any>()
   const [activeTab, setActiveTab] = useState<RequestTab>('All')
 
   const filteredData = useMemo(() => {
@@ -96,11 +95,17 @@ export default function RequestHelpScreen() {
 
   const openProfile = (item: SupportItem) => {
     if (item.type === 'helper') {
-      navigation.navigate('HelperProfile', { helperId: item.id })
+      router.push({
+        pathname: '/User/Helper/[helperId]',
+        params: { helperId: item.id },
+      })
       return
     }
 
-    navigation.navigate('NgoProfile', { ngoId: item.id })
+    router.push({
+      pathname: '/User/Helper/[ngoId]',
+      params: { ngoId: item.id },
+    })
   }
 
   return (

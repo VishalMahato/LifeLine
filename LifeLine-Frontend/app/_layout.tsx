@@ -6,6 +6,7 @@ import {
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
+import "@/src/shared/tasks/location.task";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import Providers from "@/src/core/Providers";
