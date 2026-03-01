@@ -44,11 +44,9 @@ type NGO = {
   phone: string;
 };
 
-type NearbyLocationResponse = {
+type NearbySearchLocation = {
   id: string;
   coordinates?: [number, number];
-  helperName?: string;
-  helperImage?: string;
   placeType?: string;
   address?: string;
 };
@@ -82,40 +80,7 @@ const FALLBACK_NGOS: NGO[] = [
   },
 ];
 
-const formatDistance = (distance: number | undefined) => {
-  if (!Number.isFinite(distance)) {
-    return "Nearby";
-  }
-  const safeDistance = distance as number;
-
-  if (safeDistance < 1) {
-    return `${Math.round(safeDistance * 1000)} m`;
-  }
-
-  return `${safeDistance.toFixed(1)} km`;
-};
-
-const mapHelper = (raw: NearbyLocationResponse): Helper | null => {
-  if (!Array.isArray(raw.coordinates) || raw.coordinates.length !== 2) {
-    return null;
-  }
-
-  return {
-    id: raw.id,
-    name: raw.helperName || "Qualified Helper",
-    role: "Emergency Helper",
-    degree: raw.placeType || "Certified",
-    distance: formatDistance(undefined),
-    responseRate: "90%+",
-    avatar: raw.helperImage || `https://i.pravatar.cc/150?u=${raw.id}`,
-    verified: true,
-    latitude: raw.coordinates[1],
-    longitude: raw.coordinates[0],
-    phone: "+1234567890",
-  };
-};
-
-const mapNgo = (raw: NearbyLocationResponse): NGO | null => {
+const mapNgo = (raw: NearbySearchLocation): NGO | null => {
   if (!Array.isArray(raw.coordinates) || raw.coordinates.length !== 2) {
     return null;
   }
@@ -128,7 +93,8 @@ const mapNgo = (raw: NearbyLocationResponse): NGO | null => {
   return {
     id: raw.id,
     name: raw.address || "Relief Center",
-    services: placeType === "hospital" ? "Emergency Medical" : "Disaster Relief",
+    services:
+      placeType === "hospital" ? "Emergency Medical" : "Disaster Relief",
     status: "OPEN 24/7",
     distance: "Nearby",
     latitude: raw.coordinates[1],
@@ -141,7 +107,10 @@ const NearbyScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"helpers" | "ngos">("helpers");
   const [helpers, setHelpers] = useState<Helper[]>(FALLBACK_HELPERS);
   const [ngos, setNgos] = useState<NGO[]>(FALLBACK_NGOS);
-  const [currentCoords, setCurrentCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [currentCoords, setCurrentCoords] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const fetchNearby = useCallback(async () => {
@@ -158,22 +127,19 @@ const NearbyScreen: React.FC = () => {
       setCurrentCoords({ latitude: lat, longitude: lng });
 
       const [helpersRes, nearbyRes] = await Promise.all([
-        apiClient.get<{ success: boolean; data: NearbyLocationResponse[] }>(
+        apiClient.get<{ success: boolean; data: Helper[] }>(
           API_ENDPOINTS.LOCATION.NEARBY_HELPERS,
           { params: { lat, lng, radius: 10 } },
         ),
-        apiClient.get<{ success: boolean; data: NearbyLocationResponse[] }>(
+        apiClient.get<{ success: boolean; data: NearbySearchLocation[] }>(
           API_ENDPOINTS.LOCATION.NEARBY_SEARCH,
           { params: { lat, lng, radius: 10 } },
         ),
       ]);
 
       if (helpersRes.data.success && Array.isArray(helpersRes.data.data)) {
-        const mappedHelpers = helpersRes.data.data
-          .map(mapHelper)
-          .filter((item): item is Helper => item !== null);
-        if (mappedHelpers.length > 0) {
-          setHelpers(mappedHelpers);
+        if (helpersRes.data.data.length > 0) {
+          setHelpers(helpersRes.data.data);
         }
       }
 
@@ -219,15 +185,31 @@ const NearbyScreen: React.FC = () => {
       style={styles.container}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingBottom: hp("5%") }}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void fetchNearby()} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={loading}
+          onRefresh={() => void fetchNearby()}
+        />
+      }
     >
       <View style={styles.header}>
         <Text style={styles.title}>Nearby</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={() => void fetchNearby()} disabled={loading}>
-            <Ionicons name={loading ? "sync" : "refresh-outline"} size={hp("2.4%")} color="#1E73E8" />
+          <TouchableOpacity
+            onPress={() => void fetchNearby()}
+            disabled={loading}
+          >
+            <Ionicons
+              name={loading ? "sync" : "refresh-outline"}
+              size={hp("2.4%")}
+              color="#1E73E8"
+            />
           </TouchableOpacity>
-          <Ionicons name="options-outline" size={hp("2.4%") as number} color="#374151" />
+          <Ionicons
+            name="options-outline"
+            size={hp("2.4%") as number}
+            color="#374151"
+          />
         </View>
       </View>
 
@@ -236,7 +218,12 @@ const NearbyScreen: React.FC = () => {
           style={[styles.tab, activeTab === "helpers" && styles.activeTab]}
           onPress={() => setActiveTab("helpers")}
         >
-          <Text style={[styles.tabText, activeTab === "helpers" && styles.activeTabText]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "helpers" && styles.activeTabText,
+            ]}
+          >
             Helpers
           </Text>
         </TouchableOpacity>
@@ -244,13 +231,27 @@ const NearbyScreen: React.FC = () => {
           style={[styles.tab, activeTab === "ngos" && styles.activeTab]}
           onPress={() => setActiveTab("ngos")}
         >
-          <Text style={[styles.tabText, activeTab === "ngos" && styles.activeTabText]}>NGOs</Text>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "ngos" && styles.activeTabText,
+            ]}
+          >
+            NGOs
+          </Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.searchWrapper}>
-        <Ionicons name="search-outline" size={hp("2%") as number} color="#9CA3AF" />
-        <TextInput placeholder="Search by name or role..." style={styles.searchInput} />
+        <Ionicons
+          name="search-outline"
+          size={hp("2%") as number}
+          color="#9CA3AF"
+        />
+        <TextInput
+          placeholder="Search by name or role..."
+          style={styles.searchInput}
+        />
       </View>
 
       <View style={styles.mapCard}>
@@ -267,7 +268,9 @@ const NearbyScreen: React.FC = () => {
 
       {activeTab === "helpers" && (
         <View style={{ marginBottom: hp("5%") }}>
-          <Text style={styles.sectionTitle}>AVAILABLE NOW ({helpers.length})</Text>
+          <Text style={styles.sectionTitle}>
+            AVAILABLE NOW ({helpers.length})
+          </Text>
           {helpers.map((helper) => (
             <View key={helper.id} style={styles.card}>
               <View style={styles.cardHeader}>
@@ -276,11 +279,19 @@ const NearbyScreen: React.FC = () => {
                   <View style={styles.nameRow}>
                     <Text style={styles.name}>{helper.name}</Text>
                     {helper.verified && (
-                      <Ionicons name="checkmark-circle" size={hp("2%") as number} color="#1E73E8" />
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={hp("2%") as number}
+                        color="#1E73E8"
+                      />
                     )}
                   </View>
-                  <Text style={styles.subText}>{helper.role} • {helper.degree}</Text>
-                  <Text style={styles.meta}>{helper.distance} • {helper.responseRate} response rate</Text>
+                  <Text style={styles.subText}>
+                    {helper.role} • {helper.degree}
+                  </Text>
+                  <Text style={styles.meta}>
+                    {helper.distance} • {helper.responseRate} response rate
+                  </Text>
                 </View>
               </View>
               <View style={styles.actionRow}>
@@ -309,19 +320,27 @@ const NearbyScreen: React.FC = () => {
       {activeTab === "ngos" && (
         <View style={{ marginBottom: hp("5%") }}>
           <View style={styles.ngoHeader}>
-            <Text style={styles.sectionTitle}>ACTIVE NGO RELIEF ({ngos.length})</Text>
+            <Text style={styles.sectionTitle}>
+              ACTIVE NGO RELIEF ({ngos.length})
+            </Text>
             <Text style={styles.seeAll}>See All NGOs</Text>
           </View>
           {ngos.map((ngo) => (
             <View key={ngo.id} style={styles.card}>
               <View style={styles.cardHeader}>
                 <View style={styles.ngoIcon}>
-                  <Ionicons name="medkit" size={hp("2.5%") as number} color="#EF4444" />
+                  <Ionicons
+                    name="medkit"
+                    size={hp("2.5%") as number}
+                    color="#EF4444"
+                  />
                 </View>
                 <View style={styles.cardContent}>
                   <Text style={styles.name}>{ngo.name}</Text>
                   <Text style={styles.subText}>{ngo.services}</Text>
-                  <Text style={styles.meta}>{ngo.status} • {ngo.distance}</Text>
+                  <Text style={styles.meta}>
+                    {ngo.status} • {ngo.distance}
+                  </Text>
                 </View>
               </View>
               <View style={styles.actionRow}>

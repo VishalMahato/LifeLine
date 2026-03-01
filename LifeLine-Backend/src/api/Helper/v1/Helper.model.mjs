@@ -92,6 +92,11 @@ const helperSchema = new mongoose.Schema(
       default: 0,
     },
 
+    responseRate: {
+      type: String,
+      default: '95%',
+    },
+
     totalRatings: {
       type: Number,
       default: 0,
