@@ -1,5 +1,5 @@
 import * as Location from "expo-location";
-import apiClient, { API_ENDPOINTS } from "@/src/config/api";
+import socketService from "@/src/shared/services/socket.service";
 
 let trackedUserId: string | null = null;
 
@@ -33,7 +33,7 @@ export const reportLocationCoordinates = async (
     return;
   }
 
-  await apiClient.post(API_ENDPOINTS.LOCATION.COORDINATES, {
+  await socketService.updateLocation({
     userId,
     latitude: coords.latitude,
     longitude: coords.longitude,

@@ -12,6 +12,22 @@ const router = express.Router();
  * @since 2026
  */
 
+// Payment endpoints
+router.post('/:id/payments',
+    AuthMiddleware.authenticate,
+    HelperController.createPayment
+);
+
+router.get('/:id/payments',
+    AuthMiddleware.authenticate,
+    HelperController.getPayments
+);
+
+router.patch('/payments/:paymentId/status',
+    AuthMiddleware.authenticate,
+    HelperController.updatePaymentStatus
+);
+
 // Create helper profile
 router.post('/',
     // authenticate, // Uncomment when auth middleware is available

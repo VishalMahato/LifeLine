@@ -1,5 +1,6 @@
 import HelperService from './Helper.service.mjs';
 import HelperConstants from './Helper.constants.mjs';
+import * as HelperPaymentUtils from './HelperPayment.utils.mjs';
 import mongoose from 'mongoose';
 
 /**
@@ -9,6 +10,81 @@ import mongoose from 'mongoose';
  * @since 2026
  */
 export default class HelperController {
+    /**
+     * Create a payment for a helper
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    static async createPayment(req, res) {
+        try {
+            const { id } = req.params;
+            const { amount, method, transactionId } = req.body;
+
+            const payment = await HelperPaymentUtils.createHelperPayment({
+                helperId: id,
+                amount,
+                method,
+                transactionId
+            });
+
+            res.status(201).json({
+                success: true,
+                data: payment
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    /**
+     * Get all payments for a helper
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    static async getPayments(req, res) {
+        try {
+            const { id } = req.params;
+            const payments = await HelperPaymentUtils.getHelperPayments(id);
+
+            res.status(200).json({
+                success: true,
+                data: payments
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    /**
+     * Update payment status for a helper
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    static async updatePaymentStatus(req, res) {
+        try {
+            const { paymentId } = req.params;
+            const { status } = req.body;
+
+            const payment = await HelperPaymentUtils.updateHelperPaymentStatus(paymentId, status);
+
+            res.status(200).json({
+                success: true,
+                data: payment
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
     /**
      * Create helper profile
      * @param {Object} req - Express request object
