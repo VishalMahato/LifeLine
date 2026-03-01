@@ -160,7 +160,6 @@ export default class LocationService {
       ...context.ownerQuery,
       isActive: true,
     }).sort({ lastUpdated: -1 });
-
     if (existingLocation) {
       return LocationUtils.formatLocationResponse(existingLocation);
     }
@@ -200,7 +199,6 @@ export default class LocationService {
       ...context.ownerQuery,
       isActive: true,
     }).sort({ lastUpdated: -1 });
-
     if (existingLocation) {
       return LocationUtils.formatLocationResponse(existingLocation);
     }
@@ -456,7 +454,7 @@ export default class LocationService {
       .populate({
         path: 'helperId',
         match: { 'availability.isAvailable': true, isActive: true },
-        select: 'authId availability',
+        select: 'authId availability credentials profession responseRate successRate isVerified',
         populate: {
           path: 'authId',
           select: 'name profileImage phoneNumber role',
@@ -465,28 +463,33 @@ export default class LocationService {
       .limit(100);
 
     return locations
-      .map((location) => {
-        const formatted = LocationUtils.formatLocationResponse(location);
-
-        if (Array.isArray(formatted.coordinates) && formatted.coordinates.length === 2) {
-          formatted.distance = LocationUtils.calculateDistance(
-            { lat, lng },
-            { lat: formatted.coordinates[1], lng: formatted.coordinates[0] },
-          );
-        }
-
-        const helperProfile = location?.helperId?.authId;
-        if (helperProfile && location?.helperId) {
-          formatted.helperName = helperProfile.name;
-          formatted.helperImage = helperProfile.profileImage;
-          formatted.helperPhone = helperProfile.phoneNumber || null;
-          formatted.helperRole = helperProfile.role || 'helper';
-          formatted.helperId = String(location.helperId._id);
-        }
-
-        return formatted;
+      .filter((location) => {
+        const hasCoordinates =
+          Array.isArray(location?.coordinates) && location.coordinates.length === 2;
+        return Boolean(location?.helperId?.authId) && hasCoordinates;
       })
-      .filter((location) => Boolean(location.helperId));
+      .map((location) => {
+        const helper = location.helperId;
+        const authProfile = helper.authId;
+        const distanceKm = LocationUtils.calculateDistance(
+          { lat, lng },
+          { lat: location.coordinates[1], lng: location.coordinates[0] },
+        );
+
+        return {
+          id: String(helper._id),
+          name: authProfile.name || 'Qualified Helper',
+          role: authProfile.role || 'Emergency Helper',
+          degree: helper.credentials?.[0]?.title || helper.profession || 'Certified',
+          distance: `${distanceKm.toFixed(1)} km`,
+          responseRate: helper.responseRate || `${Math.round(helper.successRate ?? 95)}%`,
+          avatar: authProfile.profileImage || `https://i.pravatar.cc/150?u=${helper._id}`,
+          verified: Boolean(helper.isVerified),
+          latitude: location.coordinates[1],
+          longitude: location.coordinates[0],
+          phone: authProfile.phoneNumber || '',
+        };
+      });
   }
 
   static async upsertHelperLocation(helperId, coords) {
