@@ -34,7 +34,6 @@ const emergencySchema = new mongoose.Schema(
         'timeout', // Emergency timed out
       ],
       default: 'active',
-      index: true,
     },
 
     // Priority Level
@@ -42,7 +41,6 @@ const emergencySchema = new mongoose.Schema(
       type: String,
       enum: ['critical', 'high', 'medium', 'low'],
       default: 'high',
-      index: true,
     },
 
     // Location Information
