@@ -1,6 +1,7 @@
 import Helper from './Helper.model.mjs';
 import HelperUtils from './Helper.utils.mjs';
 import HelperConstants from './Helper.constants.mjs';
+import mongoose from 'mongoose';
 
 /**
  * HelperService - Business logic layer for Helper operations
@@ -9,6 +10,25 @@ import HelperConstants from './Helper.constants.mjs';
  * @since 2026
  */
 export default class HelperService {
+    static async resolveHelperByIdentifier(helperIdentifier) {
+        let helper = null;
+
+        if (mongoose.Types.ObjectId.isValid(helperIdentifier)) {
+            helper = await Helper.findById(helperIdentifier);
+            if (!helper) {
+                helper = await Helper.findOne({ authId: helperIdentifier });
+            }
+        } else {
+            helper = await Helper.findOne({ authId: helperIdentifier });
+        }
+
+        if (!helper) {
+            throw new Error(HelperConstants.MESSAGES.ERROR.HELPER_NOT_FOUND);
+        }
+
+        return helper;
+    }
+
     /**
      * Create a new helper profile
      * @param {Object} helperData - Helper profile data
@@ -191,25 +211,56 @@ export default class HelperService {
      * @param {Object} availabilityData - Availability data
      * @returns {Promise<Object>} Updated helper profile
      */
-    static async updateAvailability(helperId, availabilityData) {
+    static async updateAvailability(helperIdentifier, availabilityData) {
         try {
+            const helper = await this.resolveHelperByIdentifier(helperIdentifier);
+
+            const hasBooleanPayload =
+                typeof availabilityData === 'boolean' ||
+                typeof availabilityData?.isAvailable === 'boolean';
+
+            if (hasBooleanPayload) {
+                const nextAvailability = Boolean(
+                    typeof availabilityData === 'boolean'
+                        ? availabilityData
+                        : availabilityData.isAvailable
+                );
+
+                helper.availability = {
+                    ...(helper.availability?.toObject?.() || helper.availability || {}),
+                    isAvailable: nextAvailability
+                };
+                helper.lastActive = new Date();
+                await helper.save();
+
+                return HelperUtils.formatHelperResponse(helper);
+            }
+
             if (!HelperUtils.validateAvailability(availabilityData)) {
                 throw new Error(HelperConstants.MESSAGES.VALIDATION.INVALID_AVAILABILITY);
             }
 
-            const helper = await Helper.findByIdAndUpdate(
-                helperId,
-                { availability: availabilityData, updatedAt: new Date() },
-                { new: true }
-            );
-
-            if (!helper) {
-                throw new Error(HelperConstants.MESSAGES.ERROR.HELPER_NOT_FOUND);
-            }
+            helper.availability = availabilityData;
+            helper.lastActive = new Date();
+            await helper.save();
 
             return HelperUtils.formatHelperResponse(helper);
         } catch (error) {
             throw new Error(`Failed to update availability: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get current helper availability status
+     * @param {string} helperIdentifier - Helper id or auth id
+     * @returns {Promise<boolean>} Current availability
+     */
+    static async getCurrentAvailabilityStatus(helperIdentifier) {
+        try {
+            const helper = await this.resolveHelperByIdentifier(helperIdentifier);
+            return Boolean(helper?.availability?.isAvailable);
+        } catch (error) {
+            throw new Error(`Failed to get availability status: ${error.message}`);
         }
     }
 

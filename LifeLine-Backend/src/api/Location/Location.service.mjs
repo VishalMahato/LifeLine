@@ -1,6 +1,7 @@
 import Location from './Location.model.mjs';
 import LocationUtils from './Location.utils.mjs';
 import LocationConstants from './Location.constants.mjs';
+import Helper from '../Helper/Helper.model.mjs';
 
 /**
  * LocationService - Business logic for Location operations.
@@ -339,31 +340,71 @@ export default class LocationService {
     })
       .populate({
         path: 'helperId',
+        match: { 'availability.isAvailable': true, isActive: true },
+        select: 'authId availability',
         populate: {
           path: 'authId',
-          select: 'name profileImage',
+          select: 'name profileImage phoneNumber role',
         },
       })
       .limit(100);
 
-    return locations.map((location) => {
-      const formatted = LocationUtils.formatLocationResponse(location);
+    return locations
+      .map((location) => {
+        const formatted = LocationUtils.formatLocationResponse(location);
 
-      if (Array.isArray(formatted.coordinates) && formatted.coordinates.length === 2) {
-        formatted.distance = LocationUtils.calculateDistance(
-          { lat, lng },
-          { lat: formatted.coordinates[1], lng: formatted.coordinates[0] },
-        );
-      }
+        if (Array.isArray(formatted.coordinates) && formatted.coordinates.length === 2) {
+          formatted.distance = LocationUtils.calculateDistance(
+            { lat, lng },
+            { lat: formatted.coordinates[1], lng: formatted.coordinates[0] },
+          );
+        }
 
-      const helperProfile = location?.helperId?.authId;
-      if (helperProfile) {
-        formatted.helperName = helperProfile.name;
-        formatted.helperImage = helperProfile.profileImage;
-      }
+        const helperProfile = location?.helperId?.authId;
+        if (helperProfile && location?.helperId) {
+          formatted.helperName = helperProfile.name;
+          formatted.helperImage = helperProfile.profileImage;
+          formatted.helperPhone = helperProfile.phoneNumber || null;
+          formatted.helperRole = helperProfile.role || 'helper';
+          formatted.helperId = String(location.helperId._id);
+        }
 
-      return formatted;
-    });
+        return formatted;
+      })
+      .filter((location) => Boolean(location.helperId));
+  }
+
+  static async upsertHelperLocation(helperId, coords) {
+    const helper = await Helper.findById(helperId);
+    if (!helper) {
+      throw new Error(`Referential integrity error: Helper ${helperId} does not exist`);
+    }
+
+    const longitude = Array.isArray(coords) ? Number(coords[0]) : Number(coords?.lng);
+    const latitude = Array.isArray(coords) ? Number(coords[1]) : Number(coords?.lat);
+
+    if (!LocationUtils.validateCoordinates(latitude, longitude)) {
+      throw new Error(LocationConstants.MESSAGES.VALIDATION.INVALID_COORDINATES);
+    }
+
+    const location = await Location.findOneAndUpdate(
+      { helperId, isActive: true },
+      {
+        $set: {
+          helperId,
+          userId: null,
+          type: 'Point',
+          coordinates: [longitude, latitude],
+          placeType: 'current',
+          isActive: true,
+          lastUpdated: new Date(),
+          source: 'app',
+        },
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true },
+    );
+
+    return LocationUtils.formatLocationResponse(location);
   }
 
   static async searchLocations(filters = {}, options = {}) {
