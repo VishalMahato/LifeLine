@@ -1,4 +1,5 @@
 import User from './User.Schema.mjs';
+import Auth from '../Auth/v1/Auth.model.mjs';
 import UserUtils from './User.utils.mjs';
 import UserConstants from './User.constants.mjs';
 
@@ -105,6 +106,7 @@ export default class UserService {
             });
 
             await user.save();
+            await Auth.findByIdAndUpdate(authId, { userId: user._id });
 
             return UserUtils.formatUserResponse(user);
         } catch (error) {
