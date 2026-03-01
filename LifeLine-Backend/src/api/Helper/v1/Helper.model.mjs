@@ -178,9 +178,19 @@ const helperSchema = new mongoose.Schema(
 
 // Indexes
 helperSchema.index({ authId: 1 });
-helperSchema.index({ isAvailable: 1, isVerified: 1 });
+helperSchema.index({ 'availability.isAvailable': 1, isVerified: 1 });
 helperSchema.index({ rating: -1 });
 helperSchema.index({ locationId: 1 });
+
+// Cleanup orphaned location references when helper profile is removed
+helperSchema.post('findOneAndDelete', async function (doc) {
+  if (!doc) {
+    return;
+  }
+
+  const Location = mongoose.model('Location');
+  await Location.deleteMany({ helperId: doc._id });
+});
 
 const Helper = mongoose.model('Helper', helperSchema);
 

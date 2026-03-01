@@ -78,20 +78,18 @@ export default class HelperUtils {
     static validateAvailability(availability) {
         if (!availability || typeof availability !== 'object') return false;
 
-        const required = ['status', 'currentLocation', 'serviceRadius'];
+        // Current schema shape
+        if (typeof availability.isAvailable === 'boolean') {
+            return true;
+        }
+
+        // Backward-compatible legacy shape
+        const required = ['status', 'serviceRadius'];
         for (const field of required) {
-            if (!availability[field]) return false;
+            if (availability[field] === undefined || availability[field] === null) return false;
         }
 
-        if (!Object.values(HelperConstants.AVAILABILITY_STATUS).includes(availability.status)) {
-            return false;
-        }
-
-        if (availability.schedule && !Array.isArray(availability.schedule)) {
-            return false;
-        }
-
-        return true;
+        return Object.values(HelperConstants.AVAILABILITY_STATUS).includes(availability.status);
     }
 
     /**

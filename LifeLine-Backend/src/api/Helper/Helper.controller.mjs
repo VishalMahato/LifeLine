@@ -1,5 +1,6 @@
 import HelperService from './Helper.service.mjs';
 import HelperConstants from './Helper.constants.mjs';
+import mongoose from 'mongoose';
 
 /**
  * HelperController - API handlers for Helper operations
@@ -112,7 +113,13 @@ export default class HelperController {
     static async updateAvailability(req, res) {
         try {
             const { id } = req.params;
-            const availabilityData = req.body;
+            if (!mongoose.Types.ObjectId.isValid(id)) {
+                throw new Error('Invalid helper identifier');
+            }
+
+            const availabilityData = typeof req.body?.isAvailable === 'boolean'
+                ? req.body.isAvailable
+                : req.body;
 
             const helper = await HelperService.updateAvailability(id, availabilityData);
 
@@ -120,6 +127,33 @@ export default class HelperController {
                 success: true,
                 message: HelperConstants.MESSAGES.SUCCESS.AVAILABILITY_UPDATED,
                 data: helper
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    /**
+     * Get current helper availability status
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    static async getCurrentAvailabilityStatus(req, res) {
+        try {
+            const { id } = req.params;
+
+            if (!mongoose.Types.ObjectId.isValid(id)) {
+                throw new Error('Invalid helper identifier');
+            }
+
+            const isAvailable = await HelperService.getCurrentAvailabilityStatus(id);
+
+            res.status(200).json({
+                success: true,
+                data: { isAvailable }
             });
         } catch (error) {
             res.status(400).json({
