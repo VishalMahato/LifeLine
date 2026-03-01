@@ -24,6 +24,11 @@ router.get('/profile/me',
     HelperController.getMyProfile
 );
 
+// Get helper availability by auth/helper id
+router.get('/checkCurrentAvailability/:id',
+    HelperController.getCurrentAvailabilityStatus
+);
+
 // Get helper by ID
 router.get('/:id',
     // AuthMiddleware.authenticate,

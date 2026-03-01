@@ -58,6 +58,22 @@ describe('Complete API Validation Tests', () => {
     expect(response.body.success).toBe(false);
   });
 
+  test('GET /api/helpers/checkCurrentAvailability/:id validates identifier format', async () => {
+    const response = await request(app).get('/api/helpers/checkCurrentAvailability/not-a-valid-id');
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body.success).toBe(false);
+  });
+
+  test('PATCH /api/helpers/:id/availability validates identifier format', async () => {
+    const response = await request(app)
+      .patch('/api/helpers/not-a-valid-id/availability')
+      .send({ isAvailable: true });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body.success).toBe(false);
+  });
+
   test('POST /api/medical rejects unauthenticated requests', async () => {
     const response = await request(app).post('/api/medical').send({});
 
