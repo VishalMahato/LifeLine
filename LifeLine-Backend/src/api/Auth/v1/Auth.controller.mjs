@@ -203,6 +203,27 @@ class AuthController {
   }
 
   /**
+   * Get user details by auth id
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async getUserById(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await AuthService.getUserById(id);
+
+      const response = AuthUtils.createSuccessResponse('User retrieved successfully', {
+        user: result,
+      });
+
+      res.status(response.statusCode).json(response.response);
+    } catch (error) {
+      const response = AuthUtils.createErrorResponse(error.message);
+      res.status(response.statusCode).json(response.response);
+    }
+  }
+
+  /**
    * Update user profile
    * @param {Object} req - Express request object
    * @param {Object} res - Express response object

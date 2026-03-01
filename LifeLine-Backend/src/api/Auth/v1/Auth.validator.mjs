@@ -189,6 +189,17 @@ class AuthValidator {
     ];
 
     /**
+     * Validate generic user/auth id parameter
+     */
+    static validateUserId = [
+        param('id')
+            .isMongoId()
+            .withMessage('Invalid user ID format'),
+
+        this.handleValidationErrors
+    ];
+
+    /**
      * Validate emergency contacts
      */
     static validateEmergencyContacts = [

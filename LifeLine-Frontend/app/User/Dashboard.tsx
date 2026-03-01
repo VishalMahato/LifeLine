@@ -43,7 +43,7 @@ const Dashboard = () => {
   const authId = useAppSelector((state) => state.auth.authId);
   const userId = useAppSelector((state) => state.auth.userId);
   const isSOSActive = useAppSelector((state) => state.sos.isSOSActive);
-  const trackedUserId = authId || userId || null;
+  const trackedUserId = userId || authId || null;
 
   const [countdown, setCountdown] = useState<number | null>(null);
   const [gpsStatus, setGpsStatus] = useState<GpsStatus>("idle");
@@ -155,7 +155,11 @@ const Dashboard = () => {
       }, LOCATION_REPORT_INTERVAL_MS);
 
       const backgroundStatus = await startBackgroundLocationTracking();
-      if (backgroundStatus === "permission-denied" && isMounted) {
+      if (
+        (backgroundStatus === "permission-denied"
+          || backgroundStatus === "missing-user-id")
+        && isMounted
+      ) {
         setGpsStatus("permission-denied");
       }
     };

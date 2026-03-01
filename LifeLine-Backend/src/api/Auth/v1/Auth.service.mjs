@@ -136,6 +136,32 @@ class AuthService {
     }
 
     /**
+     * Get auth/profile details by auth id
+     * @param {string} id - Auth document id
+     * @returns {Promise<Object>} Formatted auth response
+     */
+    static async getUserById(id) {
+        try {
+            this.ensureDatabaseAvailable();
+
+            const auth = await Auth.findById(id)
+                .select(
+                    '-password -emailVerificationToken -emailVerificationExpires -passwordResetToken -passwordResetExpires -loginAttempts -lockUntil',
+                )
+                .populate('userId')
+                .populate('helperId');
+
+            if (!auth) {
+                throw new Error('User not found');
+            }
+
+            return AuthUtils.formatUserResponse(auth);
+        } catch (error) {
+            throw new Error(`Failed to retrieve user: ${error.message}`);
+        }
+    }
+
+    /**
      * Update auth record with user/helper ID
      * @param {string} authId - Auth record ID
      * @param {Object} updateData - Data to update

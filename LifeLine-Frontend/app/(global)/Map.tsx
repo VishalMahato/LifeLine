@@ -14,10 +14,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import * as Location from 'expo-location';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import axios from 'axios';
 import {
   heightPercentageToDP as hp,
   widthPercentageToDP as wp,
 } from 'react-native-responsive-screen';
+import { getApiRoot } from '@/src/config/api';
 
 type UserRole = 'helper' | 'user';
 type RideType = 'driving' | 'cycling' | 'walking';
@@ -34,6 +36,25 @@ type HelperData = {
   rating: number;
   role: string;
   rescues: number;
+};
+
+type AuthLookupResponse = {
+  data?: {
+    user?: {
+      _id?: string;
+      id?: string;
+      name?: string;
+      fullName?: string;
+      profileImage?: string;
+    };
+  };
+  user?: {
+    _id?: string;
+    id?: string;
+    name?: string;
+    fullName?: string;
+    profileImage?: string;
+  };
 };
 
 type WebMapMessage =
@@ -222,17 +243,69 @@ const MapScreen = () => {
   const [userLocation, setUserLocation] = useState<Coords>(defaultUserLocation);
   const [helperLocation, setHelperLocation] = useState<Coords>(defaultHelperLocation);
 
-  const helperData = useMemo<HelperData>(
-    () => ({
-      id: helperIdParam || 'helper-1',
-      name: 'Dr. Sarah Chen',
-      avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-      rating: 4.9,
-      role: 'Emergency Responder',
-      rescues: 1247,
-    }),
-    [helperIdParam],
-  );
+  const [helperData, setHelperData] = useState<HelperData>({
+    id: helperIdParam || 'helper-1',
+    name: 'Dr. Sarah Chen',
+    avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
+    rating: 4.9,
+    role: 'Emergency Responder',
+    rescues: 1247,
+  });
+
+  useEffect(() => {
+    if (!helperIdParam) {
+      return;
+    }
+
+    setHelperData((previous) => ({
+      ...previous,
+      id: helperIdParam,
+    }));
+  }, [helperIdParam]);
+
+  const getUserById = useCallback(async () => {
+    if (!userIdParam) {
+      return null;
+    }
+
+    const response = await axios.get<AuthLookupResponse>(
+      `${getApiRoot()}/api/auth/v1/getUserById/${encodeURIComponent(userIdParam)}`,
+    );
+
+    return response.data?.data?.user || response.data?.user || null;
+  }, [userIdParam]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncRemoteUserProfile = async () => {
+      if (!userIdParam) {
+        return;
+      }
+
+      try {
+        const user = await getUserById();
+        if (!user || !isMounted) {
+          return;
+        }
+
+        setHelperData((previous) => ({
+          ...previous,
+          id: user._id || user.id || previous.id,
+          name: user.fullName || user.name || previous.name,
+          avatar: user.profileImage || previous.avatar,
+        }));
+      } catch (error) {
+        console.error('Failed to fetch user data', error);
+      }
+    };
+
+    void syncRemoteUserProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [getUserById, userIdParam]);
 
   const mapHtml = useMemo(
     () => buildMapHtml(helperLocation, userLocation, rideType),
